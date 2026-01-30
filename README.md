@@ -92,11 +92,33 @@ fnos-cli logout
 | 选项 | 说明 |
 |------|------|
 | `--raw` | 输出原始 JSON 响应 |
-| `-v` | 显示 info 级别日志 |
-| `-vv` | 显示 debug 级别日志 |
-| `-vvv` | 显示 silly 级别日志 |
+| `-v` | 显示 info 级别日志（输出到 stderr） |
+| `-vv` | 显示 debug 级别日志（输出到 stderr） |
+| `-vvv` | 显示 silly 级别日志（输出到 stderr） |
 | `-h, --help` | 显示帮助信息 |
 | `-V, --version` | 显示版本信息 |
+
+**注意**：
+- 命令结果输出到 **stdout**
+- 所有日志输出到 **stderr**
+- 默认情况下（无 `-v`），只显示错误日志到 stderr
+- 使用 `-v`、`-vv`、`-vvv` 可以控制日志详细程度
+
+**输出重定向示例**：
+
+```bash
+# 只保存命令结果，忽略所有日志
+fnos-cli resmon.cpu > output.json 2>/dev/null
+
+# 只保存日志，忽略命令结果
+fnos-cli resmon.cpu -v 2>log.txt 1>/dev/null
+
+# 分别保存命令结果和日志
+fnos-cli resmon.cpu -v > output.json 2>log.txt
+
+# 查看命令结果，隐藏日志
+fnos-cli resmon.cpu 2>/dev/null
+```
 
 ### 资源监控命令
 
@@ -197,12 +219,35 @@ fnos-cli 将配置和凭证保存在用户主目录下的 `.fnos` 文件夹中�
 
 ## 日志
 
+### 日志输出
+
+- **控制台输出**：所有日志输出到 **stderr**（标准错误流）
+- **文件输出**：日志文件保存在 `~/.fnos/logs/` 目录
+- **命令输出**：命令结果输出到 **stdout**（标准输出流）
+
+### 日志级别
+
+| 级别 | 说明 | 使用方式 |
+|------|------|----------|
+| `error` | 仅错误信息 | 默认（无 `-v`） |
+| `info` | 常规信息 | 使用 `-v` |
+| `debug` | 调试信息 | 使用 `-vv` |
+| `silly` | 详细信息 | 使用 `-vvv` |
+
+### 日志文件
+
 日志文件按日期和随机数命名，格式为：`fnos-cli-YYYY-MM-DD-{random}.log`
 
-日志级别：
-- `info` - 常规信息（使用 `-v`）
-- `debug` - 调试信息（使用 `-vv`）
-- `silly` - 详细信息（使用 `-vvv`）
+日志文件始终记录所有级别的日志（从 error 到 silly），不受 `-v` 参数影响。
+
+### 默认行为
+
+- **不使用 `-v`**：只显示错误日志到 stderr，命令结果输出到 stdout
+- **使用 `-v`**：显示 info 及以上级别的日志到 stderr
+- **使用 `-vv`**：显示 debug 及以上级别的日志到 stderr
+- **使用 `-vvv`**：显示所有级别的日志到 stderr
+
+这种设计遵循 Unix 工具的最佳实践，让用户可以灵活地分别处理命令输出和日志。
 
 ## 开发
 
@@ -224,9 +269,6 @@ fnos-cli/
 │   ├── constants.js      # 常量定义
 │   └── index.js          # CLI 入口
 ├── constitution.md        # 项目原则
-├── spec.md               # 需求规范
-├── plan.md               # 技术计划
-├── tasks.md              # 任务分解
 ├── package.json          # 项目配置
 └── README.md             # 本文件
 ```

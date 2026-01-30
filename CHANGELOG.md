@@ -57,9 +57,9 @@
 
 #### 全局选项
 - `--raw` - 输出原始 JSON 响应
-- `-v` - 显示 info 级别日志
-- `-vv` - 显示 debug 级别日志
-- `-vvv` - 显示 silly 级别日志
+- `-v` - 显示 info 级别日志（输出到 stderr）
+- `-vv` - 显示 debug 级别日志（输出到 stderr）
+- `-vvv` - 显示 silly 级别日志（输出到 stderr）
 
 #### 帮助系统
 - `fnos-cli --help` - 显示所有一级命令和全局选项
@@ -70,7 +70,7 @@
 - Winston 日志框架集成
 - 日志文件自动保存在 `~/.fnos/logs/`
 - 日志文件命名格式：`fnos-cli-YYYY-MM-DD-{random}.log`
-- 支持三级日志输出（info、debug、silly）
+- 支持四级日志级别（error、info、debug、silly）
 
 #### 输出格式化
 - 智能格式化输出（对象、数组、基本类型）
