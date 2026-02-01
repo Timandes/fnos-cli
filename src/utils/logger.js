@@ -17,7 +17,7 @@ if (!fs.existsSync(logsDir)) {
 
 // Generate random number for log filename
 const randomNum = crypto.randomBytes(4).toString('hex');
-const logFilename = `fnos-cli-${new Date().toISOString().split('T')[0]}-${randomNum}.log`;
+const logFilename = `fnos-${new Date().toISOString().split('T')[0]}-${randomNum}.log`;
 
 // Log format
 const logFormat = winston.format.printf(({ timestamp, level, message }) => {

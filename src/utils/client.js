@@ -25,7 +25,7 @@ async function createClient(options = {}) {
   const finalPassword = password || savedCredentials?.password;
 
   if (!finalEndpoint || !finalUsername) {
-    throw new Error('Missing credentials. Please run "fnos-cli login" first or provide -e, -u, -p parameters.');
+    throw new Error('Missing credentials. Please run "fnos login" first or provide -e, -u, -p parameters.');
   }
 
   // Create client
@@ -50,7 +50,7 @@ async function createClient(options = {}) {
 
   // Login with password
   if (!finalPassword) {
-    throw new Error('Password required. Please run "fnos-cli login" first or provide -p parameter.');
+    throw new Error('Password required. Please run "fnos login" first or provide -p parameter.');
   }
 
   logger.info('Logging in...');

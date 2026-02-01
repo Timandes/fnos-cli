@@ -14,7 +14,7 @@ const program = new Command();
 
 // Configure program
 program
-  .name('fnos-cli')
+  .name('fnos')
   .description('CLI client for 飞牛 fnOS system')
   .version('1.0.0');
 

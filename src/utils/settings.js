@@ -1,5 +1,5 @@
 /**
- * Settings manager for fnos-cli
+ * Settings manager for fnos
  */
 
 const fs = require('fs');

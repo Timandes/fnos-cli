@@ -62,14 +62,14 @@
 - `-vvv` - 显示 silly 级别日志（输出到 stderr）
 
 #### 帮助系统
-- `fnos-cli --help` - 显示所有一级命令和全局选项
-- `fnos-cli <command> --help` - 显示命令的二级命令列表
-- `fnos-cli <command>.<subcommand> --help` - 显示子命令的详细帮助
+- `fnos --help` - 显示所有一级命令和全局选项
+- `fnos <command> --help` - 显示命令的二级命令列表
+- `fnos <command>.<subcommand> --help` - 显示子命令的详细帮助
 
 #### 日志系统
 - Winston 日志框架集成
 - 日志文件自动保存在 `~/.fnos/logs/`
-- 日志文件命名格式：`fnos-cli-YYYY-MM-DD-{random}.log`
+- 日志文件命名格式：`fnos-YYYY-MM-DD-{random}.log`
 - 支持四级日志级别（error、info、debug、silly）
 
 #### 输出格式化
