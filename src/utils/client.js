@@ -9,16 +9,23 @@ const { logger } = require('./logger');
 /**
  * Create authenticated FnosClient
  * @param {Object} options - Options object
- * @param {string} options.endpoint - Server endpoint
- * @param {string} options.username - Username
- * @param {string} options.password - Password
- * @param {number} options.timeout - Connection timeout in seconds
+ * @param {Object} [options.credentials] - Direct credentials object (endpoint, username, password, etc.)
+ * @param {string} [options.endpoint] - Server endpoint (legacy)
+ * @param {string} [options.username] - Username (legacy)
+ * @param {string} [options.password] - Password (legacy)
+ * @param {number} [options.timeout] - Connection timeout in seconds
+ * @param {boolean} [options.saveCredentials] - Whether to save credentials to settings (default: false)
  * @returns {Promise<FnosClient>} Authenticated client
  */
 async function createClient(options = {}) {
-  const { endpoint, username, password, timeout = 60 } = options;
+  const { credentials, endpoint, username, password, timeout = 60, saveCredentials = false } = options;
 
-  // Get credentials from settings if not provided
+  // Use provided credentials object
+  if (credentials) {
+    return await createClientWithCredentials(credentials, timeout, saveCredentials);
+  }
+
+  // Legacy support: build credentials from individual parameters
   const savedCredentials = settings.getCredentials();
   const finalEndpoint = endpoint || savedCredentials?.endpoint;
   const finalUsername = username || savedCredentials?.username;
@@ -28,41 +35,56 @@ async function createClient(options = {}) {
     throw new Error('Missing credentials. Please run "fnos login" first or provide -e, -u, -p parameters.');
   }
 
+  return await createClientWithCredentials(
+    {
+      endpoint: finalEndpoint,
+      username: finalUsername,
+      password: finalPassword,
+      token: savedCredentials?.token,
+      longToken: savedCredentials?.longToken,
+      secret: savedCredentials?.secret
+    },
+    timeout,
+    saveCredentials
+  );
+}
+
+/**
+ * Create authenticated client with credentials
+ * @param {Object} credentials - Credentials object
+ * @param {string} credentials.endpoint - Server endpoint
+ * @param {string} credentials.username - Username
+ * @param {string} credentials.password - Password
+ * @param {number} timeout - Connection timeout in seconds
+ * @param {boolean} saveToSettings - Whether to save credentials to settings
+ * @returns {Promise<FnosClient>} Authenticated client
+ */
+async function createClientWithCredentials(credentials, timeout, saveToSettings) {
+  const { endpoint, username, password } = credentials;
+
   // Create client
   const client = new FnosClient();
-  logger.info(`Connecting to ${finalEndpoint}...`);
+  logger.info(`Connecting to ${endpoint}...`);
 
   // Connect
-  await client.connect(finalEndpoint, timeout * 1000);
+  await client.connect(endpoint, timeout * 1000);
   logger.info('Connected successfully');
 
-  // Try to login with token first
-  // if (savedCredentials?.token && savedCredentials?.secret && !endpoint && !username && !password) {
-  //   try {
-  //     logger.info('Logging in with saved token...');
-  //     await client.loginViaToken(savedCredentials.token, savedCredentials.longToken, savedCredentials.secret);
-  //     logger.info('Logged in successfully with token');
-  //     return client;
-  //   } catch (error) {
-  //     logger.warn('Token login failed, falling back to password login:', error.message);
-  //   }
-  // }
-
   // Login with password
-  if (!finalPassword) {
+  if (!password) {
     throw new Error('Password required. Please run "fnos login" first or provide -p parameter.');
   }
 
   logger.info('Logging in...');
-  const loginResult = await client.login(finalUsername, finalPassword);
+  const loginResult = await client.login(username, password);
   logger.info('Logged in successfully');
 
-  // Save credentials if they were provided via command line
-  if (endpoint || username || password) {
+  // Save credentials only if explicitly requested (e.g., from login command)
+  if (saveToSettings) {
     settings.saveCredentials({
-      endpoint: finalEndpoint,
-      username: finalUsername,
-      password: finalPassword,
+      endpoint,
+      username,
+      password,
       token: loginResult.token,
       longToken: loginResult.longToken,
       secret: loginResult.secret

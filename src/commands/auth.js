@@ -23,7 +23,7 @@ function registerLoginCommand(program) {
         const { endpoint, username, password } = options;
 
         logger.info('Logging in...');
-        const client = await createClient({ endpoint, username, password, timeout: 60 });
+        const client = await createClient({ endpoint, username, password, timeout: 60, saveCredentials: true });
         logger.info('Login successful! Credentials saved.');
         client.close();
         process.exit(0);

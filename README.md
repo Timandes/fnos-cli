@@ -59,7 +59,27 @@ fnos login -e nas-9.timandes.net:5666 -u SystemMonitor -p yourpassword
 
 登录成功后，凭证会保存在 `~/.fnos/settings.json` 文件中，后续命令无需重复输入。
 
-### 2. 使用命令
+### 2. 使用命令行凭证参数
+
+除了使用 `login` 保存凭证外，您还可以直接在命令中提供连接参数：
+
+```bash
+fnos <command> -e <endpoint> -u <username> -p <password>
+```
+
+例如：
+
+```bash
+fnos resmon.cpu -e nas-9.timandes.net:5666 -u SystemMonitor -p yourpassword
+```
+
+**注意事项**：
+- 三个参数（`-e`、`-u`、`-p`）必须同时提供，不能只提供部分参数
+- 使用命令行参数提供的凭证**不会**保存到配置文件中，适合临时使用
+- 如果未提供这三个参数，会自动使用已保存的凭证（需要先执行 `login`）
+- 这种方式适合自动化脚本或临时连接到不同服务器
+
+### 3. 使用命令
 
 登录后即可执行各种命令：
 
@@ -118,6 +138,38 @@ fnos resmon.cpu -v > output.json 2>log.txt
 
 # 查看命令结果，隐藏日志
 fnos resmon.cpu 2>/dev/null
+```
+
+### 认证参数
+
+所有命令（`login` 和 `logout` 除外）都支持以下可选的认证参数：
+
+| 参数 | 说明 |
+|------|------|
+| `-e, --endpoint <endpoint>` | 服务器端点（例如：nas-9.timandes.net:5666） |
+| `-u, --username <username>` | 用户名 |
+| `-p, --password <password>` | 密码 |
+
+**使用规则**：
+
+1. **三个参数必须同时提供**：如果提供任何一个参数，必须同时提供另外两个参数
+2. **临时使用不保存**：通过命令行参数提供的凭证不会被保存到配置文件
+3. **优先使用命令行参数**：如果同时提供了命令行参数和配置文件中有保存的凭证，优先使用命令行参数
+4. **回退到配置文件**：如果未提供这三个参数，会自动使用 `login` 保存的凭证
+
+**示例**：
+
+```bash
+# 使用命令行参数（临时使用，不保存）
+fnos resmon.cpu -e nas-9.timandes.net:5666 -u SystemMonitor -p yourpassword
+
+# 错误示例：只提供部分参数
+fnos resmon.cpu -e nas-9.timandes.net:5666
+# Error: When using -e/--endpoint, you must also provide -u/--username and -p/--password.
+
+# 使用已保存的凭证（需要先执行 login）
+fnos login -e nas-9.timandes.net:5666 -u SystemMonitor -p yourpassword
+fnos resmon.cpu  # 不需要再提供参数
 ```
 
 ### 资源监控命令

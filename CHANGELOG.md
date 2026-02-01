@@ -5,6 +5,12 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.2.0] - 2026-02-01
+
+### 新增
+
+- 所有命令（login 和 logout 除外）支持 `-e/-u/-p` 命令行凭证参数，允许临时使用不同的服务器凭证而不影响已保存的配置
+
 ## [0.1.0] - 2026-01-30
 
 ### 新增

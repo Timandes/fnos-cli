@@ -6,6 +6,7 @@ const { COMMAND_MAPPING } = require('../constants');
 const { createClient, getSDKInstance } = require('../utils/client');
 const { formatOutput } = require('../utils/formatter');
 const { logger } = require('../utils/logger');
+const { resolveCredentials } = require('../utils/auth-helper');
 
 /**
  * Register all dynamic commands based on COMMAND_MAPPING
@@ -20,6 +21,11 @@ function registerCommands(program) {
       // Create command
       const cmd = program.command(fullCommandName)
         .description(commandConfig.description);
+
+      // Add authentication parameters
+      cmd.option('-e, --endpoint <endpoint>', 'Server endpoint (e.g., nas-9.timandes.net:5666)');
+      cmd.option('-u, --username <username>', 'Username');
+      cmd.option('-p, --password <password>', 'Password');
 
       // Add parameters
       if (commandConfig.params) {
@@ -51,8 +57,23 @@ function registerCommands(program) {
             }
           }
 
-          // Create client (will use saved credentials from settings)
+          // Resolve credentials (command line or settings file)
+          let credentials;
+          try {
+            credentials = resolveCredentials(options, program);
+          } catch (error) {
+            if (error.message === 'PARTIAL_CREDENTIALS') {
+              // Display friendly error message
+              console.error('Error: When using -e/--endpoint, you must also provide -u/--username and -p/--password.');
+              console.error('Usage: fnos %s -e <endpoint> -u <username> -p <password>', fullCommandName);
+              process.exit(1);
+            }
+            throw error;
+          }
+
+          // Create client with resolved credentials
           const client = await createClient({
+            credentials,
             timeout: 60
           });
 
