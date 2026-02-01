@@ -16,7 +16,7 @@ const program = new Command();
 program
   .name('fnos')
   .description('CLI client for 飞牛 fnOS system')
-  .version('1.0.0');
+  .version('0.2.0');
 
 // Global options
 program
