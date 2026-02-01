@@ -1,0 +1,10 @@
+node_modules/
+*.log
+.DS_Store
+.fnos/
+test/
+.git/
+.gitignore
+CHANGELOG.md
+constitution.md
+README.md
