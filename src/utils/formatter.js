@@ -119,6 +119,107 @@ function formatObject(obj) {
     return `${gb} GB`;
   };
   
+  // Helper to format speed to MB/s
+  const formatSpeed = (speed) => {
+    if (!speed || speed === 0) return '0 MB/s';
+    const mb = (speed / (1024 * 1024)).toFixed(2);
+    return `${mb} MB/s`;
+  };
+  
+  // Special handling for resmon.gen output (has 'item' field)
+  if (obj.item !== undefined) {
+    let items;
+    if (typeof obj.item === 'string') {
+      items = obj.item.split(',').map(s => s.trim());
+    } else if (Array.isArray(obj.item)) {
+      items = obj.item;
+    } else if (typeof obj.item === 'object') {
+      // item is an object containing the actual data (storeSpeed, netSpeed, cpuBusy, memPercent)
+      const resultItems = [];
+      
+      if (obj.item.memPercent !== undefined) {
+        resultItems.push(`Memory: ${obj.item.memPercent}%`);
+      }
+      if (obj.item.cpuBusy !== undefined) {
+        resultItems.push(`CPU: ${obj.item.cpuBusy}%`);
+      }
+      if (obj.item.storeSpeed) {
+        const read = formatSpeed(obj.item.storeSpeed.read);
+        const write = formatSpeed(obj.item.storeSpeed.write);
+        resultItems.push(`Storage: ↑ ${write} | ↓ ${read}`);
+      }
+      if (obj.item.netSpeed) {
+        const receive = formatSpeed(obj.item.netSpeed.receive);
+        const transmit = formatSpeed(obj.item.netSpeed.transmit);
+        resultItems.push(`Network: ↑ ${transmit} | ↓ ${receive}`);
+      }
+      
+      if (resultItems.length > 0) {
+        result.push(resultItems.join(' | '));
+      }
+      
+      // Add metadata at the end if present
+      const metadata = {};
+      if (obj.reqid) metadata.reqid = obj.reqid;
+      if (obj.result) metadata.result = obj.result;
+      if (obj.rev) metadata.rev = obj.rev;
+      if (obj.req) metadata.req = obj.req;
+      
+      if (Object.keys(metadata).length > 0) {
+        result.push('');
+        result.push('─'.repeat(40));
+        for (const [key, value] of Object.entries(metadata)) {
+          result.push(`${key}: ${value}`);
+        }
+      }
+      
+      return result.join('\n');
+    } else {
+      // If item is neither string nor array nor object, skip special handling
+      items = [];
+    }
+    
+    const resultItems = [];
+    
+    if (items.includes('memPercent') && obj.memPercent !== undefined) {
+      resultItems.push(`Memory: ${obj.memPercent}%`);
+    }
+    if (items.includes('cpuBusy') && obj.cpuBusy !== undefined) {
+      resultItems.push(`CPU: ${obj.cpuBusy}%`);
+    }
+    if (items.includes('storeSpeed') && obj.storeSpeed) {
+      const read = formatSpeed(obj.storeSpeed.read);
+      const write = formatSpeed(obj.storeSpeed.write);
+      resultItems.push(`Storage: ↑ ${write} | ↓ ${read}`);
+    }
+    if (items.includes('netSpeed') && obj.netSpeed) {
+      const receive = formatSpeed(obj.netSpeed.receive);
+      const transmit = formatSpeed(obj.netSpeed.transmit);
+      resultItems.push(`Network: ↑ ${transmit} | ↓ ${receive}`);
+    }
+    
+    if (resultItems.length > 0) {
+      result.push(resultItems.join(' | '));
+    }
+    
+    // Add metadata at the end if present
+    const metadata = {};
+    if (obj.reqid) metadata.reqid = obj.reqid;
+    if (obj.result) metadata.result = obj.result;
+    if (obj.rev) metadata.rev = obj.rev;
+    if (obj.req) metadata.req = obj.req;
+    
+    if (Object.keys(metadata).length > 0) {
+      result.push('');
+      result.push('─'.repeat(40));
+      for (const [key, value] of Object.entries(metadata)) {
+        result.push(`${key}: ${value}`);
+      }
+    }
+    
+    return result.join('\n');
+  }
+  
   // Handle special fields first
   const metadata = {};
   const dataFields = {};
@@ -197,6 +298,16 @@ function formatObject(obj) {
         const free = formatBytes(value.free);
         const percent = value.total ? ((value.used / value.total) * 100).toFixed(1) : 0;
         result.push(`Swap: ${used} / ${total} (${percent}%) | Free: ${free}`);
+      } else if (key === 'storeSpeed' && typeof value === 'object') {
+        // Format storage speed
+        const read = formatSpeed(value.read);
+        const write = formatSpeed(value.write);
+        result.push(`Storage Speed: ↑ ${write} | ↓ ${read}`);
+      } else if (key === 'netSpeed' && typeof value === 'object') {
+        // Format network speed
+        const receive = formatSpeed(value.receive);
+        const transmit = formatSpeed(value.transmit);
+        result.push(`Network Speed: ↑ ${transmit} | ↓ ${receive}`);
       } else if (key === 'busy' && value.user !== undefined) {
         // Format CPU busy usage as compact line
         const user = value.user || 0;
