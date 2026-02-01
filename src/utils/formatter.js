@@ -112,6 +112,13 @@ function formatArray(arr) {
 function formatObject(obj) {
   const result = [];
   
+  // Helper to format bytes to GB
+  const formatBytes = (bytes) => {
+    if (!bytes || bytes === 0) return '0 GB';
+    const gb = (bytes / (1024 * 1024 * 1024)).toFixed(2);
+    return `${gb} GB`;
+  };
+  
   // Handle special fields first
   const metadata = {};
   const dataFields = {};
@@ -135,6 +142,82 @@ function formatObject(obj) {
         const title = key.charAt(0).toUpperCase() + key.slice(1);
         result.push(`${title} (${value.length} items)`);
         result.push(formatArray(value));
+      } else if (key === 'cpu' && typeof value === 'object') {
+        // Format CPU info as compact lines
+        const lines = [];
+        if (value.name) lines.push(`CPU: ${value.name}`);
+        if (value.core !== undefined) lines.push(`Cores: ${value.core}`);
+        if (value.thread !== undefined) lines.push(`Threads: ${value.thread}`);
+        if (value.maxFreq) lines.push(`Max Frequency: ${value.maxFreq} MHz`);
+        if (value.num !== undefined) lines.push(`CPU Count: ${value.num}`);
+        result.push(lines.join(' | '));
+        
+        // Handle nested fields within cpu object
+        if (value.temp) {
+          if (Array.isArray(value.temp) && value.temp.length > 0) {
+            result.push(`Temperature: ${value.temp[0]}°C`);
+          } else if (typeof value.temp === 'object') {
+            const temps = Object.entries(value.temp).map(([k, v]) => {
+              const core = k === '0' ? '' : `Core${k}: `;
+              return `${core}${v}°C`;
+            });
+            result.push(`Temperature: ${temps.join(', ')}`);
+          }
+        }
+        
+        if (value.busy && value.busy.user !== undefined) {
+          const user = value.busy.user || 0;
+          const system = value.busy.system || 0;
+          const iowait = value.busy.iowait || 0;
+          const other = value.busy.other !== undefined ? value.busy.other : 0;
+          const all = value.busy.all !== undefined ? value.busy.all : (user + system + iowait + other);
+          result.push(`CPU Usage: user ${user}%, system ${system}%, iowait ${iowait}%, total ${all}%`);
+        }
+        
+        if (value.loadavg && value.loadavg.avg1min !== undefined) {
+          const avg1 = value.loadavg.avg1min.toFixed(2);
+          const avg5 = value.loadavg.avg5min ? value.loadavg.avg5min.toFixed(2) : avg1;
+          const avg15 = value.loadavg.avg15min ? value.loadavg.avg15min.toFixed(2) : avg1;
+          result.push(`Load Average: ${avg1} (1m), ${avg5} (5m), ${avg15} (15m)`);
+        }
+      } else if (key === 'mem' && typeof value === 'object' && value.total !== undefined) {
+        // Format memory info
+        const total = formatBytes(value.total);
+        const used = formatBytes(value.used);
+        const free = formatBytes(value.free);
+        const available = formatBytes(value.available);
+        const cached = formatBytes(value.cached);
+        const buffers = formatBytes(value.buffers);
+        const percent = value.total ? ((value.used / value.total) * 100).toFixed(1) : 0;
+        result.push(`Memory: ${used} / ${total} (${percent}%) | Free: ${free} | Available: ${available} | Cached: ${cached} | Buffers: ${buffers}`);
+      } else if (key === 'swap' && typeof value === 'object' && value.total !== undefined) {
+        // Format swap info
+        const total = formatBytes(value.total);
+        const used = formatBytes(value.used);
+        const free = formatBytes(value.free);
+        const percent = value.total ? ((value.used / value.total) * 100).toFixed(1) : 0;
+        result.push(`Swap: ${used} / ${total} (${percent}%) | Free: ${free}`);
+      } else if (key === 'busy' && value.user !== undefined) {
+        // Format CPU busy usage as compact line
+        const user = value.user || 0;
+        const system = value.system || 0;
+        const iowait = value.iowait || 0;
+        const other = value.other !== undefined ? value.other : 0;
+        const all = value.all !== undefined ? value.all : (user + system + iowait + other);
+        result.push(`CPU Usage: user ${user}%, system ${system}%, iowait ${iowait}%, total ${all}%`);
+      } else if (key === 'loadavg' && value.avg1min !== undefined) {
+        // Format load average as compact line
+        const avg1 = value.avg1min.toFixed(2);
+        const avg5 = value.avg5min ? value.avg5min.toFixed(2) : avg1;
+        const avg15 = value.avg15min ? value.avg15min.toFixed(2) : avg1;
+        result.push(`Load Average: ${avg1} (1m), ${avg5} (5m), ${avg15} (15m)`);
+      } else if (key === 'temp' && typeof value === 'object') {
+        // Format temperature for CPU (might have core indices)
+        const temps = Object.entries(value).map(([k, v]) => {
+          const core = k === '0' ? '' : `Core${k}: `;
+          return `${core}${v}°C`;
+        });
+        result.push(`Temperature: ${temps.join(', ')}`);
       } else {
         // Handle nested objects
         result.push(`${key}:`);
