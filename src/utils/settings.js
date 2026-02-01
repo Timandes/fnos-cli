@@ -64,6 +64,23 @@ class Settings {
   }
 
   /**
+   * Clear only authentication credentials, preserving other settings
+   */
+  clearCredentials() {
+    const existingSettings = this.load();
+    if (!existingSettings) {
+      return;
+    }
+
+    // Remove only auth-related fields, keep other settings
+    const authFields = ['endpoint', 'username', 'password', 'token', 'longToken', 'secret'];
+    authFields.forEach(field => delete existingSettings[field]);
+
+    // Always save the file (even if empty), to preserve the settings.json file
+    this.save(existingSettings);
+  }
+
+  /**
    * Check if settings file exists
    * @returns {boolean} True if settings file exists
    */

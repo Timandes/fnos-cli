@@ -44,8 +44,9 @@ function registerLogoutCommand(program) {
     .description('Logout and clear saved credentials')
     .action(() => {
       try {
-        if (settings.exists()) {
-          settings.clear();
+        const credentials = settings.getCredentials();
+        if (credentials && (credentials.endpoint || credentials.username)) {
+          settings.clearCredentials();
           console.log('Logged out successfully. Credentials cleared.');
         } else {
           console.log('No saved credentials found.');
