@@ -1,5 +1,8 @@
 # fnos-cli
 
+[![npm version](https://badge.fury.io/js/fnos-cli.svg)](https://www.npmjs.com/package/fnos-cli)
+![License](https://img.shields.io/npm/l/fnos-cli)
+
 飞牛 fnOS 系统的命令行客户端 (CLI)
 
 ## 简介
