@@ -1,0 +1,1 @@
+{"name": "hello-plugin", "version": "1.0.0", "description": "A simple hello world plugin for demonstration", "main": "index.js", "author": "fnos-cli", "license": "MIT", "fnos": {"plugin": {"name": "hello-plugin", "version": "1.0.0", "entry": "index.js"}, "commands": {"greet": {"description": "Say hello to someone"}}}}
