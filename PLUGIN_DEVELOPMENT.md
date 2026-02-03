@@ -1,22 +1,22 @@
-# Plugin System Guide
+# 插件系统指南
 
-This guide explains how to create, configure, and use plugins for fnos-cli.
+本指南介绍如何为 fnos-cli 创建、配置和使用插件。
 
-## Overview
+## 概述
 
-The fnos-cli plugin system allows developers to extend the CLI with custom commands. Plugins can:
+fnos-cli 插件系统允许开发者使用自定义命令扩展 CLI。插件可以：
 
-- Register new commands with the `fnos` CLI
-- Access fnos SDK for system operations
-- Access authentication credentials (readonly)
-- Define their own configuration schemas
-- Leverage the provided SDK for common tasks
+- 向 `fnos` CLI 注册新命令
+- 访问 fnos SDK 进行系统操作
+- 访问身份验证凭据（只读）
+- 定义自己的配置架构
+- 利用提供的 SDK 完成常见任务
 
-## Creating a Plugin
+## 创建插件
 
-### Using the Scaffold Tool
+### 使用脚手架工具
 
-The easiest way to create a new plugin is to use the `create-plugin` command:
+创建新插件最简单的方法是使用 `create-plugin` 命令：
 
 ```bash
 fnos create-plugin my-plugin \
@@ -26,7 +26,7 @@ fnos create-plugin my-plugin \
   --author "Your Name"
 ```
 
-This will generate the following structure:
+这将生成以下结构：
 
 ```
 my-plugin/
@@ -34,14 +34,14 @@ my-plugin/
 └── index.js
 ```
 
-### Manual Plugin Structure
+### 手动插件结构
 
-A plugin must have:
+插件必须包含：
 
-1. **package.json** - Plugin manifest with `fnos.plugin` field
-2. **index.js** - Plugin entry point exporting `init` and `schema`
+1. **package.json** - 带有 `fnos.plugin` 字段的插件清单
+2. **index.js** - 导出 `init` 和 `schema` 的插件入口点
 
-#### package.json Example
+#### package.json 示例
 
 ```json
 {
@@ -66,12 +66,12 @@ A plugin must have:
 }
 ```
 
-#### index.js Example
+#### index.js 示例
 
 ```javascript
 const sdk = require('fnos-cli/sdk');
 
-// Plugin configuration schema
+// 插件配置架构
 const schema = {
   type: 'object',
   properties: {
@@ -85,30 +85,30 @@ const schema = {
 };
 
 /**
- * Plugin initialization function
- * @param {Object} config - Plugin configuration from settings.json
- * @param {Object} deps - Plugin dependencies
- * @param {Object} deps.logger - Logger instance
- * @param {Object} deps.settings - Settings object
- * @param {Object|null} deps.auth - Authentication credentials (readonly)
- * @param {Function} deps.getSDKInstance - Function to get SDK client instance
- * @returns {Object} Plugin commands
+ * 插件初始化函数
+ * @param {Object} config - 来自 settings.json 的插件配置
+ * @param {Object} deps - 插件依赖项
+ * @param {Object} deps.logger - Logger 实例
+ * @param {Object} deps.settings - Settings 对象
+ * @param {Object|null} deps.auth - 身份验证凭据（只读）
+ * @param {Function} deps.getSDKInstance - 获取 SDK 客户端实例的函数
+ * @returns {Object} 插件命令
  */
 function init(config, deps) {
   const { logger } = deps;
 
-  // Validate configuration
+  // 验证配置
   const validation = sdk.validateConfig(config, schema);
   if (!validation.valid) {
     throw new Error(`Invalid configuration: ${validation.errors.join(', ')}`);
   }
 
-  // Return plugin commands
+  // 返回插件命令
   return {
     commandName: {
       description: 'Command description',
       action: async (options) => {
-        // Command logic here
+        // 命令逻辑
         return { result: 'ok' };
       },
       params: [
@@ -125,14 +125,14 @@ function init(config, deps) {
 module.exports = { init, schema };
 ```
 
-## Plugin Configuration
+## 插件配置
 
-### Adding Configuration
+### 添加配置
 
-To add configuration options to your plugin:
+要向插件添加配置选项：
 
-1. Define properties in your `schema` object
-2. Access them via the `config` parameter in `init()`
+1. 在 `schema` 对象中定义属性
+2. 通过 `init()` 中的 `config` 参数访问它们
 
 ```javascript
 const schema = {
@@ -157,18 +157,18 @@ function init(config, deps) {
   const apiKey = config.apiKey;
   const maxRetries = config.maxRetries || 3;
 
-  // Use configuration
+  // 使用配置
   logger.info(`Using maxRetries: ${maxRetries}`);
 
   return {
-    // commands...
+    // 命令...
   };
 }
 ```
 
-### Configuration in settings.json
+### settings.json 中的配置
 
-Add plugin configuration to `~/.fnos/settings.json`:
+将插件配置添加到 `~/.fnos/settings.json`：
 
 ```json
 {
@@ -181,13 +181,13 @@ Add plugin configuration to `~/.fnos/settings.json`:
 }
 ```
 
-## Plugin SDK
+## 插件 SDK
 
-The plugin SDK provides helper functions and utilities:
+插件 SDK 提供辅助函数和实用工具：
 
 ### validateConfig(config, schema)
 
-Validate plugin configuration against a JSON Schema.
+根据 JSON Schema 验证插件配置。
 
 ```javascript
 const validation = sdk.validateConfig(config, schema);
@@ -198,7 +198,7 @@ if (!validation.valid) {
 
 ### createLogger(name)
 
-Create a named logger instance.
+创建命名 logger 实例。
 
 ```javascript
 const logger = sdk.createLogger('my-plugin');
@@ -208,7 +208,7 @@ logger.error('Error message');
 
 ### createSchemaValidator(schema)
 
-Create a reusable schema validator.
+创建可重用的架构验证器。
 
 ```javascript
 const validator = sdk.createSchemaValidator(schema);
@@ -217,7 +217,7 @@ const result = validator(data);
 
 ### createPluginError(message, code)
 
-Create a plugin error with optional error code.
+创建带有可选错误代码的插件错误。
 
 ```javascript
 const error = sdk.createPluginError('Something went wrong', 'PLUGIN_ERROR');
@@ -226,20 +226,20 @@ throw error;
 
 ### formatError(error)
 
-Format an error for user-friendly display.
+格式化错误以便用户友好显示。
 
 ```javascript
 const formatted = sdk.formatError(error);
 console.error(formatted);
 ```
 
-## Dependencies
+## 依赖项
 
-The `init` function receives the following dependencies:
+`init` 函数接收以下依赖项：
 
 ### logger
 
-Winston logger instance. Use levels: `error`, `warn`, `info`, `debug`, `silly`.
+Winston logger 实例。使用级别：`error`、`warn`、`info`、`debug`、`silly`。
 
 ```javascript
 logger.info('Information message');
@@ -248,7 +248,7 @@ logger.error('Error message');
 
 ### settings
 
-Global settings object from `settings.json`.
+来自 `settings.json` 的全局设置对象。
 
 ```javascript
 const settings = deps.settings;
@@ -256,7 +256,7 @@ const settings = deps.settings;
 
 ### auth
 
-Authentication credentials (readonly proxy). Contains:
+身份验证凭据（只读代理）。包含：
 
 ```javascript
 {
@@ -269,11 +269,11 @@ Authentication credentials (readonly proxy). Contains:
 }
 ```
 
-⚠️ **Note**: The `auth` object is readonly. Any attempt to modify it will throw an error.
+⚠️ **注意**：`auth` 对象是只读的。任何修改它的尝试都会抛出错误。
 
 ### getSDKInstance(client, className)
 
-Get an instance of an fnos SDK class.
+获取 fnos SDK 类的实例。
 
 ```javascript
 const client = require('fnos');
@@ -281,9 +281,9 @@ const resourceMonitor = deps.getSDKInstance(client, 'ResourceMonitor');
 const cpuInfo = await resourceMonitor.cpu();
 ```
 
-## Command Parameters
+## 命令参数
 
-Define parameters for your commands:
+为命令定义参数：
 
 ```javascript
 {
@@ -291,7 +291,7 @@ Define parameters for your commands:
     description: 'Command description',
     action: async (options) => {
       const { param1, param2 } = options;
-      // Use parameters
+      // 使用参数
     },
     params: [
       {
@@ -315,19 +315,19 @@ Define parameters for your commands:
 }
 ```
 
-## Installing Plugins
+## 安装插件
 
-### Official Plugins (plugins/ Directory)
+### 官方插件（plugins/ 目录）
 
-Copy your plugin to the `plugins/` directory in the fnos-cli installation:
+将插件复制到 fnos-cli 安装目录中的 `plugins/` 目录：
 
 ```bash
 cp -r my-plugin /path/to/fnos-cli/plugins/
 ```
 
-### User Plugins (settings.json)
+### 用户插件（settings.json）
 
-Add the plugin path to `settings.json`:
+将插件路径添加到 `settings.json`：
 
 ```json
 {
@@ -337,93 +337,93 @@ Add the plugin path to `settings.json`:
 }
 ```
 
-## Using Plugin Commands
+## 使用插件命令
 
-Once installed, plugin commands are available under the plugin name:
+安装后，插件命令在插件名称下可用：
 
 ```bash
-# List all commands
+# 列出所有命令
 fnos --help
 
-# Use a plugin command
+# 使用插件命令
 fnos plugin-name command-name --param1 value1
 
-# With global options
+# 带全局选项
 fnos plugin-name command-name --param1 value1 --verbose --raw
 ```
 
-## Example: hello-plugin
+## 示例：hello-plugin
 
-See the `plugins/hello-plugin/` directory for a complete example:
+请参阅 `plugins/hello-plugin/` 目录获取完整示例：
 
 ```bash
-# Use the hello plugin
+# 使用 hello 插件
 fnos hello-plugin greet --name "World"
 
-# Custom greeting
+# 自定义问候
 fnos hello-plugin greet --name "fnOS" --greeting "Welcome"
 
-# With verbose output
+# 带详细输出
 fnos hello-plugin greet --name "World" --verbose
 ```
 
-## Error Handling
+## 错误处理
 
-Always handle errors in your command actions:
+始终在命令操作中处理错误：
 
 ```javascript
 action: async (options) => {
   try {
-    // Command logic
+    // 命令逻辑
     return { result: 'success' };
   } catch (error) {
     logger.error(`Command failed: ${error.message}`);
-    throw error; // Re-throw for CLI to handle
+    throw error; // 重新抛出以供 CLI 处理
   }
 }
 ```
 
-## Best Practices
+## 最佳实践
 
-1. **Validate Configuration**: Always validate configuration in `init()`
-2. **Use Logger**: Use the provided logger for consistent output
-3. **Handle Errors**: Wrap command logic in try-catch blocks
-4. **Document Commands**: Provide clear descriptions for commands and parameters
-5. **Test Locally**: Test plugins before deployment
-6. **Keep Dependencies Minimal**: Only depend on what you need
-7. **Respect Readonly Auth**: Don't try to modify the auth object
-8. **Use SDK Helpers**: Leverage the provided SDK utilities
+1. **验证配置**：始终在 `init()` 中验证配置
+2. **使用 Logger**：使用提供的 logger 获取一致的输出
+3. **处理错误**：使用 try-catch 块包装命令逻辑
+4. **记录命令**：为命令和参数提供清晰的描述
+5. **本地测试**：在部署前测试插件
+6. **保持依赖最小**：只依赖你需要的内容
+7. **尊重只读 Auth**：不要尝试修改 auth 对象
+8. **使用 SDK 助手**：利用提供的 SDK 实用工具
 
-## Troubleshooting
+## 故障排除
 
-### Plugin Not Loading
+### 插件未加载
 
-Check:
+检查：
 
-1. Plugin manifest is valid (name, version, entry)
-2. Plugin path is absolute
-3. No command conflicts with existing plugins
-4. Plugin configuration is valid (if schema defined)
+1. 插件清单有效（name、version、entry）
+2. 插件路径是绝对路径
+3. 没有与现有插件的命令冲突
+4. 插件配置有效（如果定义了架构）
 
-### Configuration Errors
+### 配置错误
 
-Check:
+检查：
 
-1. Configuration matches the schema
-2. No typos in configuration keys
-3. Types match schema definitions
+1. 配置与架构匹配
+2. 配置键中没有拼写错误
+3. 类型与架构定义匹配
 
-### Command Not Found
+### 找不到命令
 
-Check:
+检查：
 
-1. Plugin is loaded (check startup logs)
-2. Command name is correct
-3. No command conflicts
+1. 插件已加载（检查启动日志）
+2. 命令名称正确
+3. 没有命令冲突
 
-## Resources
+## 资源
 
-- Plugin SDK: `src/sdk/index.js`
-- Example Plugin: `plugins/hello-plugin/`
-- Spec: `spec.md`
-- Plan: `plan.md`
+- 插件 SDK：`src/sdk/index.js`
+- 示例插件：`plugins/hello-plugin/`
+- 规范：`spec.md`
+- 计划：`plan.md`
