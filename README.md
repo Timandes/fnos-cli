@@ -21,6 +21,7 @@ fnos-cli 是一个用于与飞牛 fnOS 系统交互的命令行工具，通过 W
 - 🔋 **UPS 监控** - UPS 状态信息
 - 📝 **灵活的输出格式** - 支持 JSON 原始输出和格式化输出
 - 🐛 **多级日志** - 支持 info、debug、silly 三种日志级别
+- 🔌 **插件系统** - 支持第三方插件扩展，自定义命令和功能
 
 ## 安装
 
@@ -265,12 +266,67 @@ fnos file.rm --files file1.txt,file2.txt --moveToTrashbin false
 |------|------|
 | `fnos sac.upsStatus` | 获取 UPS 状态信息 |
 
+### 插件管理命令
+
+| 命令 | 说明 |
+|------|------|
+| `fnos create-plugin <name>` | 创建新的插件模板 |
+
+示例：
+
+```bash
+# 创建一个新插件
+fnos create-plugin my-plugin \
+  --path /path/to/plugins \
+  --version "1.0.0" \
+  --description "My awesome plugin" \
+  --author "Your Name"
+```
+
+**插件系统功能**：
+
+- 🔌 插件可以在启动时自动加载
+- 📦 支持通过 `plugins/` 目录或配置文件指定插件路径
+- 🎯 插件可以注册自定义命令，命令格式为 `fnos <plugin-name> <command>`
+- 🔒 插件可以访问只读的认证凭据
+- ⚙️ 支持插件配置和 JSON Schema 验证
+- 🛠️ 提供完整的插件 SDK 和开发工具
+
+详细文档请参阅 [PLUGIN_DEVELOPMENT.md](PLUGIN_DEVELOPMENT.md)。
+
 ## 配置文件
 
 fnos 将配置和凭证保存在用户主目录下的 `.fnos` 文件夹中：
 
-- `~/.fnos/settings.json` - 登录凭证（文件权限 600）
+- `~/.fnos/settings.json` - 登录凭证和插件配置（文件权限 600）
 - `~/.fnos/logs/` - 日志文件目录
+
+### 插件配置
+
+在 `settings.json` 中可以配置插件路径和插件选项：
+
+```json
+{
+  "endpoint": "nas-9.timandes.net:5666",
+  "username": "SystemMonitor",
+  "token": "your-token",
+  "pluginPaths": [
+    "/absolute/path/to/plugin1",
+    "/absolute/path/to/plugin2"
+  ],
+  "plugins": {
+    "my-plugin": {
+      "option1": "value1",
+      "option2": 42
+    }
+  }
+}
+```
+
+**配置说明**：
+
+- `pluginPaths`: 插件搜索路径数组，支持绝对路径
+- `plugins`: 插件配置对象，键为插件名称，值为插件配置
 
 ## 日志
 
@@ -315,7 +371,18 @@ fnos-cli/
 ├── src/
 │   ├── commands/          # 命令实现
 │   │   ├── auth.js       # 认证命令
+│   │   ├── plugin.js     # 插件管理命令
 │   │   └── index.js      # 命令注册
+│   ├── plugins/          # 插件系统核心
+│   │   ├── schema-validator.js  # JSON Schema 验证
+│   │   ├── config.js     # 配置管理
+│   │   ├── registry.js   # 插件注册表
+│   │   ├── loader.js     # 插件加载器
+│   │   ├── registrar.js  # 命令注册器
+│   │   └── scaffold.js   # 脚手架生成器
+│   ├── sdk/              # 插件 SDK
+│   │   ├── index.js      # SDK 主模块
+│   │   └── types.d.ts    # TypeScript 类型定义
 │   ├── utils/            # 工具函数
 │   │   ├── client.js     # FnosClient 包装器
 │   │   ├── formatter.js  # 输出格式化
@@ -323,7 +390,16 @@ fnos-cli/
 │   │   └── settings.js   # 设置管理
 │   ├── constants.js      # 常量定义
 │   └── index.js          # CLI 入口
+├── plugins/              # 官方插件目录
+│   └── hello-plugin/     # 示例插件
+├── test/                 # 测试文件
+│   ├── plugins/          # 插件系统测试
+│   └── sdk/              # SDK 测试
 ├── constitution.md        # 项目原则
+├── spec.md               # 功能规格说明
+├── plan.md               # 技术实现计划
+├── tasks.md              # 任务分解
+├── PLUGIN_DEVELOPMENT.md # 插件开发指南
 ├── package.json          # 项目配置
 └── README.md             # 本文件
 ```
@@ -339,6 +415,13 @@ npm test
 - [fnos](https://www.npmjs.com/package/fnos) @ 0.2.0 - fnOS TypeScript SDK
 - [commander](https://www.npmjs.com/package/commander) @ 11.1.0 - 命令行框架
 - [winston](https://www.npmjs.com/package/winston) @ 3.19.0 - 日志框架
+- [ajv](https://www.npmjs.com/package/ajv) @ 8.17.1 - JSON Schema 验证
+- [rimraf](https://www.npmjs.com/package/rimraf) @ 6.0.1 - 测试工具
+
+### 开发依赖
+
+- [mocha](https://www.npmjs.com/package/mocha) @ 11.1.0 - 测试框架
+- [chai](https://www.npmjs.com/package/chai) @ 5.1.2 - 断言库
 
 ## 许可证
 
@@ -347,6 +430,60 @@ Apache License 2.0
 ## 贡献
 
 欢迎提交 Issue 和 Pull Request！
+
+## 插件开发
+
+fnos-cli 提供了完整的插件系统，允许开发者扩展 CLI 功能。详细的插件开发指南请参阅 [PLUGIN_DEVELOPMENT.md](PLUGIN_DEVELOPMENT.md)。
+
+### 快速示例
+
+1. **创建插件**：
+
+```bash
+fnos create-plugin my-awesome-plugin \
+  --path ./plugins \
+  --description "My awesome plugin" \
+  --author "Your Name"
+```
+
+2. **配置插件**：
+
+编辑 `~/.fnos/settings.json`：
+
+```json
+{
+  "pluginPaths": [
+    "/absolute/path/to/my-awesome-plugin"
+  ],
+  "plugins": {
+    "my-awesome-plugin": {
+      "apiKey": "your-api-key"
+    }
+  }
+}
+```
+
+3. **使用插件命令**：
+
+```bash
+# 列出所有可用命令（包括插件命令）
+fnos --help
+
+# 使用插件命令
+fnos my-awesome-plugin my-command --param value
+
+# 查看插件命令帮助
+fnos my-awesome-plugin --help
+```
+
+### 插件系统特性
+
+- ✅ **简单易用** - 提供脚手架工具快速创建插件
+- ✅ **配置验证** - 支持 JSON Schema 验证插件配置
+- ✅ **依赖注入** - 插件可访问 logger、settings、auth 等
+- ✅ **命令注册** - 插件可注册自定义命令
+- ✅ **只读凭据** - 插件可安全访问认证凭据（只读）
+- ✅ **完整 SDK** - 提供丰富的开发工具和类型定义
 
 
 ## 致谢
