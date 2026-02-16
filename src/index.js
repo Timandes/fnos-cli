@@ -8,6 +8,7 @@ const { Command } = require('commander');
 const { registerLoginCommand, registerLogoutCommand } = require('./commands/auth');
 const { registerCommands } = require('./commands');
 const { setLogLevel } = require('./utils/logger');
+const { version } = require('../package.json');
 
 // Create program
 const program = new Command();
@@ -16,7 +17,7 @@ const program = new Command();
 program
   .name('fnos')
   .description('CLI client for 飞牛 fnOS system')
-  .version('0.2.0');
+  .version(version);
 
 // Global options
 program
