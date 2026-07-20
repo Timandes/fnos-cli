@@ -2,122 +2,81 @@
  * Settings manager for fnos
  */
 
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 
 class Settings {
-  constructor() {
-    this.settingsDir = path.join(os.homedir(), '.fnos');
+  constructor(homeDir = os.homedir()) {
+    this.settingsDir = path.join(homeDir, '.fnos');
     this.settingsPath = path.join(this.settingsDir, 'settings.json');
   }
 
-  /**
-   * Ensure settings directory exists
-   */
   _ensureDir() {
-    if (!fs.existsSync(this.settingsDir)) {
-      fs.mkdirSync(this.settingsDir, { recursive: true });
-    }
+    fs.mkdirSync(this.settingsDir, { recursive: true, mode: 0o700 });
   }
 
-  /**
-   * Load settings from file
-   * @returns {Object|null} Settings object or null if not exists
-   */
   load() {
-    if (!fs.existsSync(this.settingsPath)) {
-      return null;
-    }
+    if (!fs.existsSync(this.settingsPath)) return null;
     try {
-      const data = fs.readFileSync(this.settingsPath, 'utf8');
-      return JSON.parse(data);
+      return JSON.parse(fs.readFileSync(this.settingsPath, 'utf8'));
     } catch (error) {
       console.error('Failed to load settings:', error.message);
       return null;
     }
   }
 
-  /**
-   * Save settings to file
-   * @param {Object} data - Settings data to save
-   */
   save(data) {
     this._ensureDir();
     try {
-      fs.writeFileSync(this.settingsPath, JSON.stringify(data, null, 2), {
-        mode: 0o600 // Read/write for owner only
-      });
+      fs.writeFileSync(this.settingsPath, JSON.stringify(data, null, 2), { mode: 0o600 });
+      fs.chmodSync(this.settingsPath, 0o600);
     } catch (error) {
       console.error('Failed to save settings:', error.message);
       throw error;
     }
   }
 
-  /**
-   * Clear settings file
-   */
   clear() {
-    if (fs.existsSync(this.settingsPath)) {
-      fs.unlinkSync(this.settingsPath);
-    }
+    if (fs.existsSync(this.settingsPath)) fs.unlinkSync(this.settingsPath);
   }
 
-  /**
-   * Clear only authentication credentials, preserving other settings
-   */
   clearCredentials() {
     const existingSettings = this.load();
-    if (!existingSettings) {
-      return;
-    }
-
-    // Remove only auth-related fields, keep other settings
-    const authFields = ['endpoint', 'username', 'password', 'token', 'longToken', 'secret'];
-    authFields.forEach(field => delete existingSettings[field]);
-
-    // Always save the file (even if empty), to preserve the settings.json file
+    if (!existingSettings) return;
+    const authFields = [
+      'endpoint', 'username', 'password', 'token', 'longToken', 'secret',
+      'credentialVersion', 'secretFormat'
+    ];
+    authFields.forEach((field) => delete existingSettings[field]);
     this.save(existingSettings);
   }
 
-  /**
-   * Check if settings file exists
-   * @returns {boolean} True if settings file exists
-   */
   exists() {
     return fs.existsSync(this.settingsPath);
   }
 
-  /**
-   * Get authentication credentials
-   * @returns {Object|null} Credentials object or null
-   */
   getCredentials() {
-    const settings = this.load();
-    if (!settings) {
-      return null;
-    }
-    return {
-      endpoint: settings.endpoint,
-      username: settings.username,
-      password: settings.password,
-      token: settings.token,
-      longToken: settings.longToken,
-      secret: settings.secret
-    };
+    const data = this.load();
+    if (!data) return null;
+    const fields = [
+      'endpoint', 'username', 'password', 'token', 'longToken', 'secret',
+      'credentialVersion', 'secretFormat'
+    ];
+    return Object.fromEntries(fields.map((field) => [field, data[field]]));
   }
 
-  /**
-   * Save authentication credentials
-   * @param {Object} credentials - Credentials to save
-   */
   saveCredentials(credentials) {
     const existingSettings = this.load() || {};
     this.save({
       ...existingSettings,
+      credentialVersion: 2,
+      secretFormat: 'decrypted-v1',
       ...credentials
     });
   }
 }
 
-module.exports = new Settings();
+const settings = new Settings();
+module.exports = settings;
+module.exports.Settings = Settings;

@@ -15,6 +15,13 @@ function hasPartialCredentials(options) {
   return provided.length > 0 && provided.length < 3;
 }
 
+function credentialError(message) {
+  const error = new Error(message);
+  error.name = 'AuthenticationError';
+  error.exitCode = 3;
+  return error;
+}
+
 /**
  * Validate command line credentials completeness
  * @param {Object} options - Command line options
@@ -23,10 +30,10 @@ function hasPartialCredentials(options) {
  */
 function validateCommandLineCredentials(options) {
   if (hasPartialCredentials(options)) {
-    throw new Error('PARTIAL_CREDENTIALS');
+    throw credentialError('PARTIAL_CREDENTIALS');
   }
 
-  const hasCredentials = options.endpoint && options.username && options.password;
+  const hasCredentials = Boolean(options.endpoint && options.username && options.password);
   return { isValid: true, hasCredentials };
 }
 
@@ -36,7 +43,7 @@ function validateCommandLineCredentials(options) {
  * @returns {Object} - Credentials object
  * @throws {Error} - If no valid credentials are found or partial credentials are provided
  */
-function resolveCredentials(options) {
+function resolveCredentials(options, settingsStore = settings) {
   const validation = validateCommandLineCredentials(options);
 
   if (validation.hasCredentials) {
@@ -50,9 +57,9 @@ function resolveCredentials(options) {
   }
 
   // Read from settings file
-  const credentials = settings.getCredentials();
+  const credentials = settingsStore.getCredentials();
   if (!credentials || !credentials.endpoint || !credentials.username || !credentials.password) {
-    throw new Error('No valid credentials found. Please use "fnos login" or provide -e/-u/-p options.');
+    throw credentialError('No valid credentials found. Please use "fnos login" or provide -e/-u/-p options.');
   }
 
   return {
