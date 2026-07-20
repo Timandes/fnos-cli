@@ -3,39 +3,26 @@
 [![npm version](https://badge.fury.io/js/fnos-cli.svg)](https://www.npmjs.com/package/fnos-cli)
 ![License](https://img.shields.io/npm/l/fnos-cli)
 
-飞牛 fnOS 系统的命令行客户端 (CLI)
+飞牛 fnOS 系统的命令行客户端，通过 WebSocket/WSS 调用 fnOS API。
 
-## 简介
+## 功能
 
-fnos-cli 是一个用于与飞牛 fnOS 系统交互的命令行工具，通过 WebSocket 协议连接到 fnOS 服务器，提供资源监控、存储管理、系统信息查询、用户管理、网络管理、文件操作和 UPS 状态监控等功能。
-
-## 功能特性
-
-- 🔐 **安全的认证机制** - 支持登录/登出，凭证加密保存
-- 📊 **资源监控** - CPU、GPU、内存、磁盘、网络监控
-- 💾 **存储管理** - 查看存储信息、磁盘列表、SMART 信息
-- ℹ️ **系统信息** - 主机名、版本、硬件信息、运行时间等
-- 👤 **用户管理** - 用户信息、用户组、权限管理
-- 🌐 **网络管理** - 网络接口信息、网络检测
-- 📁 **文件操作** - 文件列表、创建目录、删除文件
-- 🔋 **UPS 监控** - UPS 状态信息
-- 📝 **灵活的输出格式** - 支持 JSON 原始输出和格式化输出
-- 🐛 **多级日志** - 支持 info、debug、silly 三种日志级别
+- 提供 21 个业务领域、111 条查询命令
+- 支持密码登录、token 重用和两步验证
+- 支持 `ws://`、`wss://` 以及可选的严格证书验证
+- 支持原始 JSON 和格式化输出
+- 密码、验证码、token、secret 和签名材料统一日志脱敏
+- 凭证保存在权限为 0600 的本地设置文件中
 
 ## 安装
 
-### 前置要求
-
-- Node.js >= 16.0.0
-- npm >= 8.0.0
-
-### 从 npm 安装
+需要 Node.js 16 或更高版本、npm 8 或更高版本。
 
 ```bash
 npm install -g fnos-cli
 ```
 
-### 从源码安装
+从源码运行：
 
 ```bash
 git clone <repository-url>
@@ -44,301 +31,122 @@ npm install
 npm link
 ```
 
-## 快速开始
+## 登录与认证
 
-### 1. 登录
-
-首次使用需要登录到 fnOS 系统：
+首次使用可保存登录凭证：
 
 ```bash
-fnos login -e <endpoint> -u <username> -p <password>
+fnos login -e nas.example.com:5666 -u admin -p password
 ```
 
-例如：
+设置写入 `~/.fnos/settings.json`。后续命令会优先重用有效 token；token 失效时回退到密码登录并升级旧凭证格式。
+
+也可为单条业务命令临时提供完整凭证，这些参数不会写入设置：
 
 ```bash
-fnos login -e nas-9.timandes.net:5666 -u SystemMonitor -p yourpassword
+fnos resmon.cpu -e nas.example.com:5666 -u admin -p password
 ```
 
-登录成功后，凭证会保存在 `~/.fnos/settings.json` 文件中，后续命令无需重复输入。
-
-### 2. 使用命令行凭证参数
-
-除了使用 `login` 保存凭证外，您还可以直接在命令中提供连接参数：
-
-```bash
-fnos <command> -e <endpoint> -u <username> -p <password>
-```
-
-例如：
-
-```bash
-fnos resmon.cpu -e nas-9.timandes.net:5666 -u SystemMonitor -p yourpassword
-```
-
-**注意事项**：
-- 三个参数（`-e`、`-u`、`-p`）必须同时提供，不能只提供部分参数
-- 使用命令行参数提供的凭证**不会**保存到配置文件中，适合临时使用
-- 如果未提供这三个参数，会自动使用已保存的凭证（需要先执行 `login`）
-- 这种方式适合自动化脚本或临时连接到不同服务器
-
-### 3. 使用命令
-
-登录后即可执行各种命令：
-
-```bash
-# 查看 CPU 使用情况
-fnos resmon.cpu
-
-# 查看存储信息
-fnos store.general
-
-# 查看系统信息
-fnos sysinfo.getHostName
-
-# 列出文件
-fnos file.ls --path /home/user
-```
-
-### 3. 登出
-
-如需清除保存的凭证：
+`-e`、`-u`、`-p` 必须同时提供。退出并只清除认证字段：
 
 ```bash
 fnos logout
 ```
 
+### 两步验证
+
+需要两步验证的账户可在登录或业务命令中提供六位验证码：
+
+```bash
+fnos login -e wss://nas.example.com:5667 -u admin -p password --twofa-code 123456 --trust-device --verify-ssl
+```
+
+验证码不会写入设置或日志。若账户尚未绑定两步验证，CLI 会提示先在 fnOS 网页端完成绑定。
+
+### WSS
+
+在 endpoint 中直接使用 `wss://`。默认兼容 fnOS 常见的自签名证书；需要严格验证证书时添加 `--verify-ssl`。当 fnOS 把 WS 重定向到 HTTPS 时，错误会同时显示原地址和重定向地址，并提示改用 `wss://`。
+
 ## 命令参考
+
+fnos-cli 提供 21 个领域、111 条业务命令。完整参数、类型和默认值见 [命令参考](docs/commands.md)。
+
+常用示例：
+
+```bash
+fnos resmon.systemFan
+fnos docker.listContainers --all true
+fnos backup.listTasks --direction 0
+fnos network.getInfo --if-name eth0
+fnos security.getProcessTraffic --processes '[{"pid":1001,"process":"demo"}]'
+```
+
+原有 26 条命令名称保持兼容，既有 camelCase 参数也保留为隐藏别名。
 
 ### 全局选项
 
 | 选项 | 说明 |
-|------|------|
-| `--raw` | 输出原始 JSON 响应 |
-| `-v` | 显示 info 级别日志（输出到 stderr） |
-| `-vv` | 显示 debug 级别日志（输出到 stderr） |
-| `-vvv` | 显示 silly 级别日志（输出到 stderr） |
-| `-h, --help` | 显示帮助信息 |
-| `-V, --version` | 显示版本信息 |
+|---|---|
+| `--raw` | 输出原始 JSON |
+| `-v, --verbose` | 输出 info 日志到 stderr |
+| `-vv, --debug` | 输出 debug 日志到 stderr |
+| `-vvv, --silly` | 输出 silly 日志到 stderr |
+| `-V, --version` | 显示版本 |
+| `-h, --help` | 显示帮助 |
 
-**注意**：
-- 命令结果输出到 **stdout**
-- 所有日志输出到 **stderr**
-- 默认情况下（无 `-v`），只显示错误日志到 stderr
-- 使用 `-v`、`-vv`、`-vvv` 可以控制日志详细程度
-
-**输出重定向示例**：
+命令结果写入 stdout，日志写入 stderr：
 
 ```bash
-# 只保存命令结果，忽略所有日志
-fnos resmon.cpu > output.json 2>/dev/null
-
-# 只保存日志，忽略命令结果
-fnos resmon.cpu -v 2>log.txt 1>/dev/null
-
-# 分别保存命令结果和日志
-fnos resmon.cpu -v > output.json 2>log.txt
-
-# 查看命令结果，隐藏日志
-fnos resmon.cpu 2>/dev/null
+fnos resmon.cpu --raw > result.json 2> fnos.log
 ```
 
-### 认证参数
+## 配置与日志
 
-所有命令（`login` 和 `logout` 除外）都支持以下可选的认证参数：
+- `~/.fnos/settings.json`：登录凭证，权限固定为 0600
+- `~/.fnos/logs/`：日志文件目录
 
-| 参数 | 说明 |
-|------|------|
-| `-e, --endpoint <endpoint>` | 服务器端点（例如：nas-9.timandes.net:5666） |
-| `-u, --username <username>` | 用户名 |
-| `-p, --password <password>` | 密码 |
-
-**使用规则**：
-
-1. **三个参数必须同时提供**：如果提供任何一个参数，必须同时提供另外两个参数
-2. **临时使用不保存**：通过命令行参数提供的凭证不会被保存到配置文件
-3. **优先使用命令行参数**：如果同时提供了命令行参数和配置文件中有保存的凭证，优先使用命令行参数
-4. **回退到配置文件**：如果未提供这三个参数，会自动使用 `login` 保存的凭证
-
-**示例**：
-
-```bash
-# 使用命令行参数（临时使用，不保存）
-fnos resmon.cpu -e nas-9.timandes.net:5666 -u SystemMonitor -p yourpassword
-
-# 错误示例：只提供部分参数
-fnos resmon.cpu -e nas-9.timandes.net:5666
-# Error: When using -e/--endpoint, you must also provide -u/--username and -p/--password.
-
-# 使用已保存的凭证（需要先执行 login）
-fnos login -e nas-9.timandes.net:5666 -u SystemMonitor -p yourpassword
-fnos resmon.cpu  # 不需要再提供参数
-```
-
-### 资源监控命令
-
-| 命令 | 说明 |
-|------|------|
-| `fnos resmon.cpu` | CPU 资源监控 |
-| `fnos resmon.gpu` | GPU 资源监控 |
-| `fnos resmon.mem` | 内存资源监控 |
-| `fnos resmon.disk` | 磁盘资源监控 |
-| `fnos resmon.net` | 网络资源监控 |
-| `fnos resmon.gen --items <items>` | 通用资源监控 |
-
-示例：
-
-```bash
-fnos resmon.cpu --raw
-fnos resmon.gen --items storeSpeed,netSpeed,cpuBusy,memPercent
-```
-
-### 存储管理命令
-
-| 命令 | 说明 |
-|------|------|
-| `fnos store.general` | 存储通用信息 |
-| `fnos store.calcSpace` | 计算存储空间 |
-| `fnos store.listDisk [--noHotSpare]` | 列出磁盘信息 |
-| `fnos store.diskSmart --disk <disk>` | 获取磁盘 SMART 信息 |
-| `fnos store.state [--name] [--uuid]` | 获取存储状态 |
-
-示例：
-
-```bash
-fnos store.listDisk --noHotSpare false
-fnos store.diskSmart --disk nvme0n1
-```
-
-### 系统信息命令
-
-| 命令 | 说明 |
-|------|------|
-| `fnos sysinfo.getHostName` | 获取主机名 |
-| `fnos sysinfo.getTrimVersion` | 获取 Trim 版本 |
-| `fnos sysinfo.getMachineId` | 获取机器 ID |
-| `fnos sysinfo.getHardwareInfo` | 获取硬件信息 |
-| `fnos sysinfo.getUptime` | 获取系统运行时间 |
-
-### 用户管理命令
-
-| 命令 | 说明 |
-|------|------|
-| `fnos user.info` | 获取用户信息 |
-| `fnos user.listUG` | 列出用户和组 |
-| `fnos user.groupUsers` | 获取用户分组信息 |
-| `fnos user.isAdmin` | 检查当前用户是否为管理员 |
-
-### 网络管理命令
-
-| 命令 | 说明 |
-|------|------|
-| `fnos network.list [--type]` | 列出网络信息 |
-| `fnos network.detect --ifName <name>` | 检测网络接口 |
-
-示例：
-
-```bash
-fnos network.list --type 0
-fnos network.detect --ifName eth0
-```
-
-### 文件操作命令
-
-| 命令 | 说明 |
-|------|------|
-| `fnos file.ls [--path]` | 列出文件和目录 |
-| `fnos file.mkdir --path <path>` | 创建目录 |
-| `fnos file.rm --files <files> [--moveToTrashbin]` | 删除文件或目录 |
-
-示例：
-
-```bash
-fnos file.ls --path /home/user
-fnos file.mkdir --path /home/user/newdir
-fnos file.rm --files file1.txt,file2.txt --moveToTrashbin false
-```
-
-### SAC 命令
-
-| 命令 | 说明 |
-|------|------|
-| `fnos sac.upsStatus` | 获取 UPS 状态信息 |
-
-## 配置文件
-
-fnos 将配置和凭证保存在用户主目录下的 `.fnos` 文件夹中：
-
-- `~/.fnos/settings.json` - 登录凭证（文件权限 600）
-- `~/.fnos/logs/` - 日志文件目录
-
-## 日志
-
-### 日志输出
-
-- **控制台输出**：所有日志输出到 **stderr**（标准错误流）
-- **文件输出**：日志文件保存在 `~/.fnos/logs/` 目录
-- **命令输出**：命令结果输出到 **stdout**（标准输出流）
-
-### 日志级别
-
-| 级别 | 说明 | 使用方式 |
-|------|------|----------|
-| `error` | 仅错误信息 | 默认（无 `-v`） |
-| `info` | 常规信息 | 使用 `-v` |
-| `debug` | 调试信息 | 使用 `-vv` |
-| `silly` | 详细信息 | 使用 `-vvv` |
-
-### 日志文件
-
-日志文件按日期和随机数命名，格式为：`fnos-YYYY-MM-DD-{random}.log`
-
-日志文件始终记录所有级别的日志（从 error 到 silly），不受 `-v` 参数影响。
-
-### 默认行为
-
-- **不使用 `-v`**：只显示错误日志到 stderr，命令结果输出到 stdout
-- **使用 `-v`**：显示 info 及以上级别的日志到 stderr
-- **使用 `-vv`**：显示 debug 及以上级别的日志到 stderr
-- **使用 `-vvv`**：显示所有级别的日志到 stderr
-
-这种设计遵循 Unix 工具的最佳实践，让用户可以灵活地分别处理命令输出和日志。
+密码目前以本地设置值保存，并非系统钥匙串或加密保险库。请保护用户主目录权限，不要共享设置文件。
 
 ## 开发
-
-### 项目结构
-
-```
-fnos-cli/
-├── bin/
-│   └── fnos               # 可执行文件
-├── src/
-│   ├── commands/          # 命令实现
-│   │   ├── auth.js       # 认证命令
-│   │   └── index.js      # 命令注册
-│   ├── utils/            # 工具函数
-│   │   ├── client.js     # FnosClient 包装器
-│   │   ├── formatter.js  # 输出格式化
-│   │   ├── logger.js     # 日志配置
-│   │   └── settings.js   # 设置管理
-│   ├── constants.js      # 常量定义
-│   └── index.js          # CLI 入口
-├── constitution.md        # 项目原则
-├── package.json          # 项目配置
-└── README.md             # 本文件
-```
 
 ### 运行测试
 
 ```bash
-npm test
+npm test                 # 离线单元测试
+npm run test:smoke       # 需要 127.0.0.1:5666 上运行固定版本 fnos-mock-server
+npm run test:all         # 单元测试和冒烟测试
+```
+
+冒烟测试固定使用 fnos-mock-server 提交 `d9592a05a8e07082b954921acfae3a9a915f3c01`、Python 3.11 和 `uv`，并设置 `FNOS_MOCK_TWOFA_USERS=twofauser`。
+
+重新生成命令参考：
+
+```bash
+npm run docs:commands
+```
+
+### 项目结构
+
+```text
+fnos-cli/
+├── bin/fnos
+├── src/
+│   ├── commands/
+│   │   ├── catalog/
+│   │   ├── auth.js
+│   │   ├── options.js
+│   │   └── runner.js
+│   └── utils/
+├── scripts/generate-command-reference.js
+├── docs/commands.md
+└── test/
 ```
 
 ## 依赖项
 
-- [fnos](https://www.npmjs.com/package/fnos) @ 0.2.0 - fnOS TypeScript SDK
-- [commander](https://www.npmjs.com/package/commander) @ 11.1.0 - 命令行框架
-- [winston](https://www.npmjs.com/package/winston) @ 3.19.0 - 日志框架
+- [fnos](https://www.npmjs.com/package/fnos) @ 0.4.0
+- [Commander.js](https://www.npmjs.com/package/commander) @ 11.1.0
+- [Winston](https://www.npmjs.com/package/winston) @ 3.19.0
 
 ## 许可证
 
@@ -346,10 +154,4 @@ Apache License 2.0
 
 ## 贡献
 
-欢迎提交 Issue 和 Pull Request！
-
-
-## 致谢
-
-感谢 飞牛fnOS 团队提供的优质NAS系统。
-
+欢迎提交 Issue 和 Pull Request。

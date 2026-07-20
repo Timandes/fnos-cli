@@ -4,7 +4,7 @@
 
 ### 1. 技术栈
 - **语言**: JavaScript (ES2022+)
-- **SDK**: fnos@0.2.0
+- **SDK**: fnos@0.4.0
 - **CLI 框架**: Commander.js
 - **日志**: Winston
 - **测试**: Mocha + Chai (或类似框架)
