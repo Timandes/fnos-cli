@@ -1,62 +1,48 @@
-/**
- * Authentication commands (login, logout)
- */
-
-const { Command } = require('commander');
 const settings = require('../utils/settings');
 const { createClient } = require('../utils/client');
-const { logger } = require('../utils/logger');
+const { registerAuthenticationOptions } = require('./options');
 
-/**
- * Register login command
- * @param {Command} program - Commander program instance
- */
-function registerLoginCommand(program) {
-  program
-    .command('login')
-    .description('Login to fnOS system and save credentials')
-    .requiredOption('-e, --endpoint <endpoint>', 'Server endpoint (e.g., nas-9.timandes.net:5666)')
-    .requiredOption('-u, --username <username>', 'Username')
-    .requiredOption('-p, --password <password>', 'Password')
-    .action(async (options) => {
-      try {
-        const { endpoint, username, password } = options;
-
-        logger.info('Logging in...');
-        const client = await createClient({ endpoint, username, password, timeout: 60, saveCredentials: true });
-        logger.info('Login successful! Credentials saved.');
-        client.close();
-        process.exit(0);
-      } catch (error) {
-        logger.error(`Login failed: ${error.message}`);
-        process.exit(3);
-      }
-    });
+function registerLoginCommand(program, dependencies = {}) {
+  const create = dependencies.createClient || createClient;
+  const stderr = dependencies.stderr || console.error;
+  const command = program.command('login').description('Login to fnOS and save credentials');
+  registerAuthenticationOptions(command, true);
+  command.action(async (options) => {
+    let client;
+    try {
+      client = await create({
+        endpoint: options.endpoint,
+        username: options.username,
+        password: options.password,
+        timeout: 60,
+        saveCredentials: true,
+        twofaCode: options.twofaCode,
+        trustDevice: options.trustDevice,
+        verifySsl: options.verifySsl
+      });
+      process.exitCode = 0;
+    } catch (error) {
+      stderr(`Error: ${error.message}`);
+      process.exitCode = error.exitCode || 1;
+    } finally {
+      if (client) client.close();
+    }
+  });
 }
 
-/**
- * Register logout command
- * @param {Command} program - Commander program instance
- */
-function registerLogoutCommand(program) {
-  program
-    .command('logout')
-    .description('Logout and clear saved credentials')
-    .action(() => {
-      try {
-        const credentials = settings.getCredentials();
-        if (credentials && (credentials.endpoint || credentials.username)) {
-          settings.clearCredentials();
-          console.log('Logged out successfully. Credentials cleared.');
-        } else {
-          console.log('No saved credentials found.');
-        }
-        process.exit(0);
-      } catch (error) {
-        logger.error(`Logout failed: ${error.message}`);
-        process.exit(1);
-      }
-    });
+function registerLogoutCommand(program, dependencies = {}) {
+  const store = dependencies.settings || settings;
+  const stdout = dependencies.stdout || console.log;
+  program.command('logout').description('Logout and clear saved credentials').action(() => {
+    const credentials = store.getCredentials();
+    if (credentials && (credentials.endpoint || credentials.username)) {
+      store.clearCredentials();
+      stdout('Logged out successfully. Credentials cleared.');
+    } else {
+      stdout('No saved credentials found.');
+    }
+    process.exitCode = 0;
+  });
 }
 
 module.exports = { registerLoginCommand, registerLogoutCommand };

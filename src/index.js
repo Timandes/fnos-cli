@@ -1,58 +1,46 @@
 #!/usr/bin/env node
 
-/**
- * fnos-cli - CLI client for 飞牛 fnOS system
- */
-
 const { Command } = require('commander');
 const { registerLoginCommand, registerLogoutCommand } = require('./commands/auth');
 const { registerCommands } = require('./commands');
 const { setLogLevel } = require('./utils/logger');
 const { version } = require('../package.json');
 
-// Create program
-const program = new Command();
-
-// Configure program
-program
-  .name('fnos')
-  .description('CLI client for 飞牛 fnOS system')
-  .version(version);
-
-// Global options
-program
-  .option('--raw', 'Output raw JSON response')
-  .option('-v, --verbose', 'Verbose output (info level)')
-  .option('-vv, --debug', 'Debug output (debug level)')
-  .option('-vvv, --silly', 'Silly output (silly level)');
-
-// Register auth commands
-registerLoginCommand(program);
-registerLogoutCommand(program);
-
-// Register dynamic commands
-registerCommands(program);
-
-// Hook into parse to set log level before command execution
-program.hook('preAction', (thisCommand, actionCommand) => {
-  const options = thisCommand.opts();
-  let verboseLevel = 0;
-  if (options.verbose) verboseLevel = 1;
-  if (options.debug) verboseLevel = 2;
-  if (options.silly) verboseLevel = 3;
-  
-  // Set log level for both CLI and SDK logger
-  setLogLevel(verboseLevel);
-  
-  // Set environment variable to control SDK logger level
-  const sdkLogLevels = ['error', 'info', 'debug', 'silly'];
-  process.env.LOG_LEVEL = sdkLogLevels[verboseLevel];
-});
-
-// Parse
-program.parse(process.argv);
-
-// Show help if no command provided
-if (!process.argv.slice(2).length) {
-  program.outputHelp();
+function createProgram(dependencies = {}) {
+  const program = new Command();
+  program.name('fnos').description('CLI client for 飞牛 fnOS system').version(version);
+  program
+    .option('--raw', 'Output raw JSON response')
+    .option('-v, --verbose', 'Verbose output (info level)')
+    .option('-vv, --debug', 'Debug output (debug level)')
+    .option('-vvv, --silly', 'Silly output (silly level)');
+  registerLoginCommand(program, dependencies);
+  registerLogoutCommand(program, dependencies);
+  registerCommands(program, dependencies);
+  program.hook('preAction', (thisCommand) => {
+    const options = thisCommand.opts();
+    const verboseLevel = options.silly ? 3 : options.debug ? 2 : options.verbose ? 1 : 0;
+    setLogLevel(verboseLevel);
+    process.env.LOG_LEVEL = ['error', 'info', 'debug', 'silly'][verboseLevel];
+  });
+  return program;
 }
+
+async function main(argv = process.argv, dependencies = {}) {
+  const program = createProgram(dependencies);
+  if (argv.slice(2).length === 0) {
+    program.outputHelp();
+    return 0;
+  }
+  await program.parseAsync(argv);
+  return process.exitCode || 0;
+}
+
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(`Error: ${error.message}`);
+    process.exitCode = error.exitCode || 1;
+  });
+}
+
+module.exports = { createProgram, main };
