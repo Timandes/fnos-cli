@@ -29,7 +29,7 @@ function renderCommandReference() {
       }
     }
   }
-  return `${lines.join('\n')}\n`;
+  return lines.join('\n');
 }
 
 if (require.main === module) {

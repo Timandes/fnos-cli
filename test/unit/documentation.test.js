@@ -27,6 +27,7 @@ describe('release documentation', () => {
     assert.equal(typeof renderCommandReference, 'function', 'command reference renderer must be implemented');
     const actual = fs.readFileSync(path.resolve(__dirname, '../../docs/commands.md'), 'utf8');
     assert.equal(actual, renderCommandReference());
+    assert.doesNotMatch(actual, /\n\n$/, 'command reference must end with exactly one newline');
     assert.match(actual, /111 commands across 21 domains/);
     assert.match(actual, /`docker\.listContainers`/);
     assert.match(actual, /`security\.getProcessTraffic`/);

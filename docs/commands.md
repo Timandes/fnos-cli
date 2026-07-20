@@ -773,4 +773,3 @@ List Docker registry repositories
 | `--keyword <keyword>` | no | string | Search keyword. Default: `""`. |
 | `--page <integer>` | no | integer | Page number. Default: `1`. |
 | `--page-size <integer>` | no | integer | Items per page. Default: `20`. |
-
