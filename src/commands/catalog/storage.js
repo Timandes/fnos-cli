@@ -16,7 +16,7 @@ const storageCatalog = {
           name: 'noHotSpare',
           flag: '--no-hot-spare <boolean>',
           legacyFlags: ['--noHotSpare <boolean>'],
-          readNames: ['hotSpare', 'noHotSpare'],
+          readNames: ['noHotSpare', 'hotSpare'],
           type: 'boolean',
           defaultValue: true,
           description: 'Exclude hot spare disks'
