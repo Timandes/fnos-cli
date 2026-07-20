@@ -30,7 +30,13 @@ async function runCommand(context, dependencies = {}) {
       verifySsl: context.options.verifySsl
     });
     const instance = getSDKInstance(client, context.domain.className);
-    const result = await instance[context.definition.method](...args);
+    const result = context.domain.className === 'SystemInfo' && context.definition.method === 'getHostName'
+      ? {
+          result: 'succ',
+          req: 'appcgi.sysinfo.getHostName',
+          data: { hostName: client.hostName, trimVersion: client.trimVersion }
+        }
+      : await instance[context.definition.method](...args);
     stdout(formatOutput(result, context.globalOptions.raw));
     return 0;
   } catch (error) {

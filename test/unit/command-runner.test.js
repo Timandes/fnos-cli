@@ -84,4 +84,36 @@ describe('command runner', () => {
     assert.match(errors[0], /https:\/\/host:5667\//);
     assert.match(errors[0], /wss:\/\//);
   });
+
+  it('returns the host name cached during connection instead of issuing the SDK request again', async () => {
+    requireRunner();
+    let closed = 0;
+    let methodCalled = false;
+    const output = [];
+    const client = {
+      hostName: 'mock-host',
+      trimVersion: '1.0.0',
+      close: () => { closed += 1; }
+    };
+    const code = await runner.runCommand({
+      domain: COMMAND_CATALOG.sysinfo,
+      definition: COMMAND_CATALOG.sysinfo.commands.getHostName,
+      options: { endpoint: 'host:5666', username: 'admin', password: 'pw' },
+      globalOptions: { raw: true }
+    }, {
+      resolveCredentials: () => ({ endpoint: 'host:5666', username: 'admin', password: 'pw' }),
+      createClient: async () => client,
+      getSDKInstance: () => ({ getHostName: async () => { methodCalled = true; } }),
+      stdout: (value) => output.push(value),
+      stderr: () => {}
+    });
+    assert.equal(code, 0);
+    assert.equal(methodCalled, false);
+    assert.equal(closed, 1);
+    assert.deepEqual(JSON.parse(output[0]), {
+      result: 'succ',
+      req: 'appcgi.sysinfo.getHostName',
+      data: { hostName: 'mock-host', trimVersion: '1.0.0' }
+    });
+  });
 });

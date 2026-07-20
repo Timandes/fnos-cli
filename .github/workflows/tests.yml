@@ -1,0 +1,58 @@
+name: Tests
+
+on:
+  push:
+    branches: [main, develop, "feature/**"]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - uses: astral-sh/setup-uv@v2
+        with:
+          version: latest
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Fetch pinned fnos-mock-server
+        env:
+          FNOS_MOCK_SERVER_REF: d9592a05a8e07082b954921acfae3a9a915f3c01
+        run: |
+          git init ../fnos-mock-server
+          cd ../fnos-mock-server
+          git remote add origin https://github.com/Timandes/fnos-mock-server.git
+          git fetch --depth 1 origin "$FNOS_MOCK_SERVER_REF"
+          git checkout --detach FETCH_HEAD
+      - name: Install mock-server dependencies
+        working-directory: ../fnos-mock-server
+        run: uv sync --python 3.11
+      - name: Start mock server
+        working-directory: ../fnos-mock-server
+        env:
+          FNOS_MOCK_TWOFA_USERS: twofauser
+        run: |
+          uv run --python 3.11 python -m server.main > /tmp/fnos-mock-server.log 2>&1 &
+          echo $! > /tmp/fnos-mock-server.pid
+      - name: Wait for mock server
+        run: |
+          for attempt in {1..30}; do
+            if nc -z 127.0.0.1 5666; then exit 0; fi
+            sleep 1
+          done
+          exit 1
+      - run: npm ci
+      - run: npm run test:all
+      - name: Stop mock server
+        if: always()
+        run: |
+          if [ -f /tmp/fnos-mock-server.pid ]; then kill "$(cat /tmp/fnos-mock-server.pid)" || true; fi
+      - name: Show mock-server log
+        if: failure()
+        run: cat /tmp/fnos-mock-server.log
