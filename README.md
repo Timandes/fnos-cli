@@ -16,7 +16,7 @@
 
 ## 安装
 
-需要 Node.js 16 或更高版本、npm 8 或更高版本。
+需要 Node.js 18 或更高版本、npm 8 或更高版本。
 
 ```bash
 npm install -g fnos-cli

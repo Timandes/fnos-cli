@@ -41,6 +41,7 @@ describe('release documentation', () => {
     assert.match(readme, /wss:\/\//);
     assert.match(readme, /npm run test:smoke/);
     assert.match(readme, /fnos.*0\.4\.0/i);
+    assert.match(readme, /Node\.js 18 或更高版本/);
     assert.doesNotMatch(readme, /凭证加密保存/);
     assert.match(changelog, /## \[0\.3\.0\] - 2026-07-20/);
     assert.doesNotMatch(changelog, /凭证加密保存/);

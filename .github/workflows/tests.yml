@@ -2,18 +2,21 @@ name: Tests
 
 on:
   push:
-    branches: [main, develop, "feature/**"]
+    branches: [main, develop, "feature/**", "release/**"]
   pull_request:
     branches: [main, develop]
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: ["18", "20"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: ${{ matrix.node-version }}
           cache: npm
       - uses: astral-sh/setup-uv@v2
         with:
