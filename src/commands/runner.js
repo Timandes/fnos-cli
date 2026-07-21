@@ -1,15 +1,8 @@
-const { HTTPSRequiredError } = require('fnos');
 const { buildMethodArguments } = require('./options');
 const clientUtils = require('../utils/client');
 const { formatOutput } = require('../utils/formatter');
 const { resolveCredentials } = require('../utils/auth-helper');
-
-function errorMessage(error) {
-  if (error instanceof HTTPSRequiredError) {
-    return `fnOS requires HTTPS: ${error.requestedUri} was redirected to ${error.redirectUri}. Use the corresponding wss:// endpoint.`;
-  }
-  return error.message || String(error);
-}
+const { errorMessage } = require('../utils/errors');
 
 async function runCommand(context, dependencies = {}) {
   const createClient = dependencies.createClient || clientUtils.createClient;
@@ -30,13 +23,7 @@ async function runCommand(context, dependencies = {}) {
       verifySsl: context.options.verifySsl
     });
     const instance = getSDKInstance(client, context.domain.className);
-    const result = context.domain.className === 'SystemInfo' && context.definition.method === 'getHostName'
-      ? {
-          result: 'succ',
-          req: 'appcgi.sysinfo.getHostName',
-          data: { hostName: client.hostName, trimVersion: client.trimVersion }
-        }
-      : await instance[context.definition.method](...args);
+    const result = await instance[context.definition.method](...args);
     stdout(formatOutput(result, context.globalOptions.raw));
     return 0;
   } catch (error) {

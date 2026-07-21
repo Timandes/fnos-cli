@@ -18,6 +18,8 @@ class FakeClient {
   constructor() {
     this.calls = [];
     this.closed = false;
+    this.pendingRequests = new Map();
+    this.processedMessages = [];
     this.loginResult = {
       result: 'succ', token: 'token', longToken: 'long', secret: 'encrypted', reqid: 'login-1'
     };
@@ -27,12 +29,17 @@ class FakeClient {
   }
 
   async connect(...args) { this.calls.push(['connect', ...args]); }
-  async login(...args) { this.calls.push(['login', ...args]); return this.loginResult; }
+  async login(...args) {
+    this.calls.push(['login', ...args]);
+    if (this.loginError) throw this.loginError;
+    return this.loginResult;
+  }
   async submitTwofaCode(...args) {
     this.calls.push(['submitTwofaCode', ...args]);
     return { result: 'succ', token: 'token', longToken: 'long', secret: 'encrypted', reqid: 'twofa-1' };
   }
   async loginViaToken(...args) { this.calls.push(['loginViaToken', ...args]); return this.tokenResult; }
+  processMessage(message) { this.processedMessages.push(message); }
   getDecryptedSecret() { return 'decrypted'; }
   close() { this.closed = true; }
 }
@@ -90,6 +97,47 @@ describe('fnos client authentication', () => {
       credentialVersion: 2, token: 'token', longToken: 'long', secret: 'decrypted', secretFormat: 'decrypted-v1'
     }, {}, dependencies(client));
     assert.ok(client.calls.some(([name]) => name === 'login'));
+  });
+
+  it('maps rejected password authentication to exit code 3', async () => {
+    requireClientApi();
+    const client = new FakeClient();
+    client.loginError = new Error('Invalid credentials');
+    await assert.rejects(
+      clientUtils.createClientWithCredentials(
+        { endpoint: 'host:5666', username: 'admin', password: 'wrong', source: 'command_line' },
+        {},
+        dependencies(client)
+      ),
+      (error) => error instanceof clientUtils.AuthenticationError &&
+        error.exitCode === 3 && error.message === 'Invalid credentials'
+    );
+    assert.equal(client.closed, true);
+  });
+
+  it('correlates post-connect host name responses with pending SDK requests', async () => {
+    requireClientApi();
+    const client = new FakeClient();
+    await clientUtils.createClientWithCredentials(
+      { endpoint: 'host:5666', username: 'admin', password: 'pw', source: 'command_line' },
+      {},
+      dependencies(client)
+    );
+    const response = {
+      result: 'succ', reqid: 'host-name-1', req: 'appcgi.sysinfo.getHostName', rev: '1',
+      data: { hostName: 'mock-host', trimVersion: '1.0.0' }
+    };
+    let resolved;
+    client.pendingRequests.set(response.reqid, {
+      timeoutTimer: null,
+      future: { resolve: (value) => { resolved = value; } }
+    });
+
+    client.processMessage(JSON.stringify(response));
+
+    assert.deepEqual(resolved, response);
+    assert.equal(client.pendingRequests.has(response.reqid), false);
+    assert.deepEqual(client.processedMessages, []);
   });
 
   it('submits two-factor codes without saving command-line credentials', async () => {

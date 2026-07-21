@@ -32,9 +32,41 @@ function tokenLoginSucceeded(result) {
   return Boolean(result && (result.result === 'succ' || result.errno === 0));
 }
 
+// fnos 0.4.0 treats every response containing data.hostName as the connection
+// handshake, so a later SystemInfo.getHostName response never reaches its waiter.
+function installHostNameResponseCompatibility(client) {
+  if (typeof client.processMessage !== 'function' || !(client.pendingRequests instanceof Map)) return;
+  const processMessage = client.processMessage.bind(client);
+  client.processMessage = (message) => {
+    let response;
+    try {
+      response = JSON.parse(message);
+    } catch (error) {
+      return processMessage(message);
+    }
+    const hasHostName = response && response.data &&
+      typeof response.data === 'object' && 'hostName' in response.data;
+    const pending = hasHostName && typeof response.reqid === 'string'
+      ? client.pendingRequests.get(response.reqid)
+      : null;
+    if (pending) {
+      if (pending.timeoutTimer) clearTimeout(pending.timeoutTimer);
+      client.pendingRequests.delete(response.reqid);
+      pending.future.resolve(response);
+      return;
+    }
+    return processMessage(message);
+  };
+}
+
 async function passwordLogin(client, credentials, options) {
   if (!credentials.password) throw new AuthenticationError('Password is required.');
-  let result = await client.login(credentials.username, credentials.password, 10000);
+  let result;
+  try {
+    result = await client.login(credentials.username, credentials.password, 10000);
+  } catch (error) {
+    throw new AuthenticationError(error.message || 'Login failed.');
+  }
   if (!result) throw new AuthenticationError('Login failed.');
   if (result.twofaSetupRequired) {
     throw new AuthenticationError('This account must bind two-factor authentication in the fnOS web interface first.');
@@ -62,6 +94,7 @@ async function createClientWithCredentials(credentials, options = {}, dependenci
   try {
     activeLogger.info(`Connecting to ${credentials.endpoint}...`);
     await client.connect(credentials.endpoint, timeout * 1000, false, options.verifySsl === true ? false : true);
+    installHostNameResponseCompatibility(client);
     let result;
     let usedToken = false;
 

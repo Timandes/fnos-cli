@@ -19,14 +19,18 @@ if (!fs.existsSync(logsDir)) {
 const randomNum = crypto.randomBytes(4).toString('hex');
 const logFilename = `fnos-${new Date().toISOString().split('T')[0]}-${randomNum}.log`;
 
-const SENSITIVE_VALUE = /((?:"?(?:longToken|long_token|accessToken|access_token|twofaCode|twofa_code|password|secret|token|code|hmac)"?)\s*[:=]\s*)(["']?)[^"',\s}\]]+\2/gi;
+const SENSITIVE_VALUE = /((?:"?(?:longToken|long_token|accessToken|access_token|twofaCode|twofa_code|password|secret|token|code|hmac)"?)\s*[:=]\s*)("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\[REDACTED\]|[^\s,}\]]+)/gi;
 const SIGNED_MESSAGE = /^(Calculated iz-result:|Sending msg to channel:|已发送请求:)\s*.*$/i;
 
 function redactSensitive(value) {
   const message = String(value);
   if (SIGNED_MESSAGE.test(message)) return message.replace(SIGNED_MESSAGE, '$1 [REDACTED]');
   return message
-    .replace(SENSITIVE_VALUE, '$1$2[REDACTED]$2')
+    .replace(SENSITIVE_VALUE, (match, prefix, rawValue) => {
+      const quote = rawValue[0] === '"' || rawValue[0] === "'" ? rawValue[0] : '';
+      const value = quote ? rawValue.slice(1, -1) : rawValue;
+      return value === '[REDACTED]' ? match : `${prefix}${quote}[REDACTED]${quote}`;
+    })
     .replace(/(服务器返回的secret:\s*)\S+/gi, '$1[REDACTED]');
 }
 

@@ -1,5 +1,6 @@
 const settings = require('../utils/settings');
 const { createClient } = require('../utils/client');
+const { errorMessage } = require('../utils/errors');
 const { registerAuthenticationOptions } = require('./options');
 
 function registerLoginCommand(program, dependencies = {}) {
@@ -22,7 +23,7 @@ function registerLoginCommand(program, dependencies = {}) {
       });
       process.exitCode = 0;
     } catch (error) {
-      stderr(`Error: ${error.message}`);
+      stderr(`Error: ${errorMessage(error)}`);
       process.exitCode = error.exitCode || 1;
     } finally {
       if (client) client.close();

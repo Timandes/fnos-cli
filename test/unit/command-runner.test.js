@@ -85,16 +85,37 @@ describe('command runner', () => {
     assert.match(errors[0], /wss:\/\//);
   });
 
-  it('returns the host name cached during connection instead of issuing the SDK request again', async () => {
+  it('redacts sensitive values from command errors', async () => {
+    requireRunner();
+    const errors = [];
+    const code = await runner.runCommand({
+      domain: COMMAND_CATALOG.network,
+      definition: COMMAND_CATALOG.network.commands.list,
+      options: { endpoint: 'host:5666', username: 'admin', password: 'pw' },
+      globalOptions: {}
+    }, {
+      resolveCredentials: () => ({ endpoint: 'host:5666', username: 'admin', password: 'pw' }),
+      createClient: async () => {
+        throw new Error('token=TOKEN_ERROR_SENTINEL password="PASSWORD ERROR,VALUE"');
+      },
+      stderr: (value) => errors.push(value)
+    });
+    assert.equal(code, 1);
+    assert.doesNotMatch(errors[0], /TOKEN_ERROR_SENTINEL|PASSWORD ERROR,VALUE/);
+    assert.match(errors[0], /\[REDACTED\]/);
+  });
+
+  it('executes the public host name SDK method and preserves its full response', async () => {
     requireRunner();
     let closed = 0;
     let methodCalled = false;
+    let methodArgs;
     const output = [];
-    const client = {
-      hostName: 'mock-host',
-      trimVersion: '1.0.0',
-      close: () => { closed += 1; }
+    const response = {
+      result: 'succ', reqid: 'host-name-1', req: 'appcgi.sysinfo.getHostName', rev: '1',
+      data: { hostName: 'mock-host', trimVersion: '1.0.0' }
     };
+    const client = { close: () => { closed += 1; } };
     const code = await runner.runCommand({
       domain: COMMAND_CATALOG.sysinfo,
       definition: COMMAND_CATALOG.sysinfo.commands.getHostName,
@@ -103,17 +124,20 @@ describe('command runner', () => {
     }, {
       resolveCredentials: () => ({ endpoint: 'host:5666', username: 'admin', password: 'pw' }),
       createClient: async () => client,
-      getSDKInstance: () => ({ getHostName: async () => { methodCalled = true; } }),
+      getSDKInstance: () => ({
+        getHostName: async (...args) => {
+          methodCalled = true;
+          methodArgs = args;
+          return response;
+        }
+      }),
       stdout: (value) => output.push(value),
       stderr: () => {}
     });
     assert.equal(code, 0);
-    assert.equal(methodCalled, false);
+    assert.equal(methodCalled, true);
+    assert.deepEqual(methodArgs, [10000]);
     assert.equal(closed, 1);
-    assert.deepEqual(JSON.parse(output[0]), {
-      result: 'succ',
-      req: 'appcgi.sysinfo.getHostName',
-      data: { hostName: 'mock-host', trimVersion: '1.0.0' }
-    });
+    assert.deepEqual(JSON.parse(output[0]), response);
   });
 });

@@ -18,6 +18,7 @@ describe('sensitive log redaction', () => {
       const { logger, setLogLevel } = require('./src/utils/logger');
       setLogLevel(3);
       logger.info('password=PASSWORD_SENTINEL code=OTP_SENTINEL');
+      logger.error("password=\"PASSWORD QUOTED,VALUE\" token='TOKEN QUOTED VALUE'");
       logger.debug('token=TOKEN_SENTINEL longToken=LONG_TOKEN_SENTINEL long_token=LONG_SNAKE_SENTINEL');
       logger.silly('accessToken=ACCESS_TOKEN_SENTINEL access_token=ACCESS_SNAKE_SENTINEL secret=SECRET_SENTINEL hmac=HMAC_SENTINEL');
       const sdkLogger = require('fnos/dist/logger').default;
@@ -39,9 +40,12 @@ describe('sensitive log redaction', () => {
     const sentinels = [
       'PASSWORD_SENTINEL', 'OTP_SENTINEL', 'TOKEN_SENTINEL', 'LONG_TOKEN_SENTINEL',
       'LONG_SNAKE_SENTINEL', 'ACCESS_TOKEN_SENTINEL', 'ACCESS_SNAKE_SENTINEL',
-      'SECRET_SENTINEL', 'HMAC_SENTINEL', 'SIGNATURE_SENTINEL', 'PAYLOAD_SENTINEL'
+      'SECRET_SENTINEL', 'HMAC_SENTINEL', 'SIGNATURE_SENTINEL', 'PAYLOAD_SENTINEL',
+      'PASSWORD QUOTED,VALUE', 'TOKEN QUOTED VALUE'
     ];
     for (const sentinel of sentinels) assert.ok(!combined.includes(sentinel), sentinel);
+    assert.match(combined, /password="\[REDACTED\]"/);
+    assert.match(combined, /token='\[REDACTED\]'/);
     assert.match(combined, /Calculated iz-result: \[REDACTED\]/);
     assert.match(combined, /Sending msg to channel: \[REDACTED\]/);
   });

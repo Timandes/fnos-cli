@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 require('../src').main().catch((error) => {
-  console.error(`Error: ${error.message}`);
+  const { errorMessage } = require('../src/utils/errors');
+  console.error(`Error: ${errorMessage(error)}`);
   process.exitCode = error.exitCode || 1;
 });

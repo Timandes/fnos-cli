@@ -45,6 +45,46 @@ describe('authentication commands', () => {
     assert.equal(result.stdout, 'LOGIN_OK');
   });
 
+  it('redacts sensitive values from login errors', () => {
+    const result = runScript(`
+      const { Command } = require('commander');
+      const { registerLoginCommand } = require('./src/commands/auth');
+      let captured = '';
+      const program = new Command();
+      registerLoginCommand(program, {
+        createClient: async () => { throw new Error('token=TOKEN_LOGIN_SENTINEL password="PASSWORD LOGIN,VALUE"'); },
+        stderr: (value) => { captured = value; }
+      });
+      program.parseAsync(['node', 'fnos', 'login', '-e', 'host:5666', '-u', 'admin', '-p', 'pw'])
+        .then(() => process.stdout.write(captured));
+    `);
+    assert.equal(result.status, 1, result.stderr);
+    assert.doesNotMatch(result.stdout, /TOKEN_LOGIN_SENTINEL|PASSWORD LOGIN,VALUE/);
+    assert.match(result.stdout, /\[REDACTED\]/);
+  });
+
+  it('reports both HTTPS redirect addresses during login', () => {
+    const result = runScript(`
+      const { Command } = require('commander');
+      const { HTTPSRequiredError } = require('fnos');
+      const { registerLoginCommand } = require('./src/commands/auth');
+      let captured = '';
+      const program = new Command();
+      registerLoginCommand(program, {
+        createClient: async () => {
+          throw new HTTPSRequiredError('ws://host:5666/websocket', 'https://host:5667/', 301);
+        },
+        stderr: (value) => { captured = value; }
+      });
+      program.parseAsync(['node', 'fnos', 'login', '-e', 'host:5666', '-u', 'admin', '-p', 'pw'])
+        .then(() => process.stdout.write(captured));
+    `);
+    assert.equal(result.status, 1, result.stderr);
+    assert.match(result.stdout, /ws:\/\/host:5666\/websocket/);
+    assert.match(result.stdout, /https:\/\/host:5667\//);
+    assert.match(result.stdout, /wss:\/\//);
+  });
+
   it('runs logout with injected settings and preserves process control', () => {
     const result = runScript(`
       const assert = require('node:assert/strict');

@@ -4,6 +4,7 @@ const { Command } = require('commander');
 const { registerLoginCommand, registerLogoutCommand } = require('./commands/auth');
 const { registerCommands } = require('./commands');
 const { setLogLevel } = require('./utils/logger');
+const { errorMessage } = require('./utils/errors');
 const { version } = require('../package.json');
 
 function createProgram(dependencies = {}) {
@@ -38,7 +39,7 @@ async function main(argv = process.argv, dependencies = {}) {
 
 if (require.main === module) {
   main().catch((error) => {
-    console.error(`Error: ${error.message}`);
+    console.error(`Error: ${errorMessage(error)}`);
     process.exitCode = error.exitCode || 1;
   });
 }
