@@ -11,4 +11,31 @@ describe('package metadata', () => {
     assert.equal(pkg.scripts['test:all'], 'npm run test:unit && npm run test:smoke');
     assert.equal(pkg.scripts['docs:commands'], 'node scripts/generate-command-reference.js');
   });
+
+  it('publishes only runtime files and user-facing documentation', () => {
+    assert.deepEqual(pkg.files, [
+      'bin/',
+      'src/',
+      'README.md',
+      'CHANGELOG.md',
+      'LICENSE',
+      'docs/commands.md'
+    ]);
+  });
+
+  it('exposes complete npm release metadata', () => {
+    assert.equal(pkg.author, 'Timandes White');
+    assert.deepEqual(pkg.engines, { node: '>=16' });
+    assert.deepEqual(pkg.repository, {
+      type: 'git',
+      url: 'git+https://github.com/Timandes/fnos-cli.git'
+    });
+    assert.deepEqual(pkg.bugs, {
+      url: 'https://github.com/Timandes/fnos-cli/issues'
+    });
+    assert.equal(pkg.homepage, 'https://github.com/Timandes/fnos-cli#readme');
+    assert.deepEqual(pkg.publishConfig, {
+      registry: 'https://registry.npmjs.org/'
+    });
+  });
 });
