@@ -65,7 +65,10 @@ async function passwordLogin(client, credentials, options) {
   try {
     result = await client.login(credentials.username, credentials.password, 10000);
   } catch (error) {
-    throw new AuthenticationError(error.message || 'Login failed.');
+    if (client.loginResponse?.result === 'fail') {
+      throw new AuthenticationError(error.message || 'Login failed.');
+    }
+    throw error;
   }
   if (!result) throw new AuthenticationError('Login failed.');
   if (result.twofaSetupRequired) {

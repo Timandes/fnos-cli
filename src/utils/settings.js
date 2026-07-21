@@ -21,7 +21,9 @@ class Settings {
     try {
       return JSON.parse(fs.readFileSync(this.settingsPath, 'utf8'));
     } catch (error) {
-      console.error('Failed to load settings:', error.message);
+      console.error(error instanceof SyntaxError
+        ? 'Failed to load settings: invalid JSON.'
+        : 'Failed to load settings.');
       return null;
     }
   }
@@ -32,7 +34,7 @@ class Settings {
       fs.writeFileSync(this.settingsPath, JSON.stringify(data, null, 2), { mode: 0o600 });
       fs.chmodSync(this.settingsPath, 0o600);
     } catch (error) {
-      console.error('Failed to save settings:', error.message);
+      console.error('Failed to save settings.');
       throw error;
     }
   }

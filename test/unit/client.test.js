@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { after, describe, it } = require('mocha');
+const { NotConnectedError } = require('fnos');
 
 const originalHome = process.env.HOME;
 const testHome = fs.mkdtempSync(path.join(os.tmpdir(), 'fnos-cli-client-unit-'));
@@ -102,6 +103,7 @@ describe('fnos client authentication', () => {
   it('maps rejected password authentication to exit code 3', async () => {
     requireClientApi();
     const client = new FakeClient();
+    client.loginResponse = { result: 'fail', errmsg: 'Invalid credentials' };
     client.loginError = new Error('Invalid credentials');
     await assert.rejects(
       clientUtils.createClientWithCredentials(
@@ -113,6 +115,27 @@ describe('fnos client authentication', () => {
         error.exitCode === 3 && error.message === 'Invalid credentials'
     );
     assert.equal(client.closed, true);
+  });
+
+  it('preserves password login connection and protocol errors', async () => {
+    requireClientApi();
+    const failures = [
+      new NotConnectedError('Connection closed during login'),
+      new Error('Login timed out')
+    ];
+    for (const failure of failures) {
+      const client = new FakeClient();
+      client.loginError = failure;
+      await assert.rejects(
+        clientUtils.createClientWithCredentials(
+          { endpoint: 'host:5666', username: 'admin', password: 'pw', source: 'command_line' },
+          {},
+          dependencies(client)
+        ),
+        (error) => error === failure && error.exitCode === undefined
+      );
+      assert.equal(client.closed, true);
+    }
   });
 
   it('correlates post-connect host name responses with pending SDK requests', async () => {

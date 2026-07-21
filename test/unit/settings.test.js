@@ -28,4 +28,20 @@ describe('credential settings', () => {
     store.clearCredentials();
     assert.deepEqual(store.load(), { theme: 'dark' });
   });
+
+  it('does not expose invalid settings content in stderr', () => {
+    const store = settingsStore();
+    fs.mkdirSync(path.dirname(store.settingsPath), { recursive: true });
+    fs.writeFileSync(store.settingsPath, '{"password": PASSWORD_SETTINGS_SENTINEL}', 'utf8');
+    const errors = [];
+    const originalError = console.error;
+    console.error = (...values) => errors.push(values.join(' '));
+    try {
+      assert.equal(store.load(), null);
+    } finally {
+      console.error = originalError;
+    }
+    assert.deepEqual(errors, ['Failed to load settings: invalid JSON.']);
+    assert.doesNotMatch(errors[0], /PASSWORD_SETTINGS_SENTINEL/);
+  });
 });
