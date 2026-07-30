@@ -50,16 +50,56 @@ describe('fnos CLI smoke tests', function () {
     const settingsPath = path.join(testHome, '.fnos', 'settings.json');
     assert.equal(fs.statSync(settingsPath).mode & 0o777, 0o600);
     const data = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
-    assert.equal(data.credentialVersion, 2);
+    assert.equal(data.servers.default.credentialVersion, 2);
     data.theme = 'dark';
-    data.password = 'wrong-password-to-prove-token-reuse';
+    data.servers.default.password = 'wrong-password-to-prove-token-reuse';
     fs.writeFileSync(settingsPath, JSON.stringify(data, null, 2), { mode: 0o600 });
     const query = runCli(['--raw', 'sysinfo.getHostName'], testHome);
     assert.equal(query.status, 0, query.stderr || query.error?.message);
     assert.equal(JSON.parse(query.stdout).result, 'succ');
     const logout = runCli(['logout'], testHome);
     assert.equal(logout.status, 0, logout.stderr || logout.error?.message);
-    assert.deepEqual(JSON.parse(fs.readFileSync(settingsPath, 'utf8')), { theme: 'dark' });
+    assert.deepEqual(
+      JSON.parse(fs.readFileSync(settingsPath, 'utf8')),
+      { servers: {}, theme: 'dark' }
+    );
+  });
+
+  it('keeps named server credentials independent', () => {
+    const testHome = home();
+    const defaultLogin = runCli([
+      'login',
+      '-e', '127.0.0.1:5666',
+      '-u', 'admin',
+      '-p', 'admin'
+    ], testHome);
+    assert.equal(defaultLogin.status, 0, defaultLogin.stderr || defaultLogin.error?.message);
+
+    const officeLogin = runCli([
+      'login',
+      '--server', 'office',
+      '-e', '127.0.0.1:5666',
+      '-u', 'admin',
+      '-p', 'admin'
+    ], testHome);
+    assert.equal(officeLogin.status, 0, officeLogin.stderr || officeLogin.error?.message);
+
+    const query = runCli([
+      '--raw',
+      'sysinfo.getHostName',
+      '--server', 'office'
+    ], testHome);
+    assert.equal(query.status, 0, query.stderr || query.error?.message);
+    assert.equal(JSON.parse(query.stdout).result, 'succ');
+
+    const logout = runCli(['logout', '--server', 'office'], testHome);
+    assert.equal(logout.status, 0, logout.stderr || logout.error?.message);
+    assert.match(logout.stdout, /office/);
+
+    const settingsPath = path.join(testHome, '.fnos', 'settings.json');
+    const data = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+    assert.ok(data.servers.default);
+    assert.equal(data.servers.office, undefined);
   });
 
   it('completes two-factor login', () => {
