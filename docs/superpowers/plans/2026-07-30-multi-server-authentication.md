@@ -20,6 +20,7 @@
 - 不新增活动 server 状态，也不新增 `server list/use/rename` 命令。
 - 所有新增错误继续经过现有 `errorMessage` 脱敏。
 - 使用英文 Angular/Conventional Commits 提交消息；提交消息不得包含 `Co-Authored-By`。
+- 本计划代码块中的多个测试案例必须逐条执行微循环：一次只添加一个行为测试，运行并确认因该行为缺失而失败，再写最小实现、跑绿并重构；不得批量添加测试后一次性实现。
 
 ## File Structure
 
@@ -49,6 +50,47 @@
 - `test/unit/program.test.js`：真实 CLI 非 TTY 多 server 行为测试。
 - `test/unit/documentation.test.js`：文档同步断言。
 - `test/smoke/cli.test.js`：默认和命名 server 的真实 mock-server 流程。
+
+---
+
+### Task 0: Establish the Named-Server Smoke RED
+
+**Files:**
+- Modify: `test/smoke/cli.test.js:46-71`
+
+**Interfaces:**
+- Consumes: pinned fnos mock server at `127.0.0.1:5666`。
+- Produces: an end-to-end failing acceptance test that can only pass after `login/query/logout --server` works。
+
+- [ ] **Step 1: Start or verify the pinned mock server**
+
+Use commit `d9592a05a8e07082b954921acfae3a9a915f3c01`, Python 3.11, and
+`FNOS_MOCK_TWOFA_USERS=twofauser`. Verify:
+
+```bash
+nc -z 127.0.0.1 5666
+```
+
+Expected: exit `0`. If the server cannot be started, stop before production code and resolve the environment blocker.
+
+- [ ] **Step 2: Write only the named-server smoke test**
+
+Add the `keeps named server credentials independent` test shown in Task 7 Step 2. Do not change production code or the legacy smoke expectations yet.
+
+- [ ] **Step 3: Run the one smoke test and verify the correct RED**
+
+Run:
+
+```bash
+npx mocha --timeout 180000 test/smoke/cli.test.js \
+  --grep "keeps named server credentials independent"
+```
+
+Expected: FAIL because `login --server office` does not recognize `--server`; the default login before it succeeds, proving the mock server is healthy.
+
+- [ ] **Step 4: Leave the failing acceptance test uncommitted**
+
+Do not commit this RED by itself. `npm test` only runs unit tests, so Tasks 1-6 can remain green while the smoke acceptance test waits for the completed integration. Task 7 runs it green and commits it.
 
 ---
 
@@ -466,16 +508,26 @@ git commit -m "feat: store named server credentials"
 
 - [ ] **Step 1: Write failing selector tests**
 
-Create `test/unit/server-selector.test.js`:
+Create `test/unit/server-selector.test.js` with a safe loader so the first RED is an assertion failure instead of a module-loading error:
 
 ```js
 const assert = require('node:assert/strict');
 const { describe, it } = require('mocha');
-const {
-  ServerSelectionError,
-  sortServers,
-  selectServer
-} = require('../../src/utils/server-selector');
+
+function loadSelector() {
+  try {
+    return require('../../src/utils/server-selector');
+  } catch (error) {
+    if (error.code === 'MODULE_NOT_FOUND' &&
+        error.message.includes('../../src/utils/server-selector')) return {};
+    throw error;
+  }
+}
+
+const selector = loadSelector();
+const ServerSelectionError = selector.ServerSelectionError || Error;
+const sortServers = selector.sortServers;
+const selectServer = selector.selectServer;
 
 function output(isTTY = true) {
   return {
@@ -493,6 +545,7 @@ const servers = [
 
 describe('server selector', () => {
   it('sorts default first and the remaining names lexically', () => {
+    assert.equal(typeof sortServers, 'function', 'sortServers must be implemented');
     assert.deepEqual(
       sortServers(servers).map(({ name }) => name),
       ['default', 'alpha', 'zeta']
@@ -560,7 +613,7 @@ Run:
 npx mocha test/unit/server-selector.test.js
 ```
 
-Expected: FAIL with `Cannot find module '../../src/utils/server-selector'`.
+Expected: FAIL with `sortServers must be implemented`, proving the test reaches the missing feature rather than failing during test setup.
 
 - [ ] **Step 3: Implement the selector without a third-party dependency**
 
@@ -1427,16 +1480,6 @@ assert.match(actual, /-s, --server <name>/);
 assert.match(actual, /Saved server name/);
 ```
 
-In the existing README/CHANGELOG test, add:
-
-```js
-assert.match(readme, /fnos login --server office/);
-assert.match(readme, /servers\.default/);
-assert.match(readme, /非交互/);
-assert.match(changelog, /## \[Unreleased\]/);
-assert.match(changelog, /多 server/);
-```
-
 - [ ] **Step 2: Run documentation tests and verify the content is absent**
 
 Run:
@@ -1445,7 +1488,7 @@ Run:
 npx mocha test/unit/documentation.test.js
 ```
 
-Expected: FAIL because the shared server option and migration text are not documented.
+Expected: FAIL because the generated command reference does not expose the shared server option. README and CHANGELOG are human prose and are reviewed directly rather than protected by source-text assertions.
 
 - [ ] **Step 3: Extend the command reference generator**
 
@@ -1550,6 +1593,15 @@ git commit -m "docs: document multi-server authentication"
 
 - [ ] **Step 1: Update the legacy smoke flow for the new canonical schema**
 
+Before editing the old assertions, run:
+
+```bash
+npx mocha --timeout 180000 test/smoke/cli.test.js \
+  --grep "logs in, reuses saved tokens"
+```
+
+Expected: FAIL at the old top-level `credentialVersion` assertion because the implemented login now stores `servers.default`. This is the RED that justifies updating the existing contract test.
+
 Change the existing login flow assertions:
 
 ```js
@@ -1569,9 +1621,9 @@ assert.deepEqual(
 );
 ```
 
-- [ ] **Step 2: Add an end-to-end named server isolation test**
+- [ ] **Step 2: Keep the pre-implementation named server acceptance test**
 
-Add:
+Task 0 already added this test and watched it fail before production code. Confirm it remains exactly:
 
 ```js
 it('keeps named server credentials independent', () => {
