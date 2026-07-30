@@ -3,8 +3,52 @@
  */
 
 const fs = require('node:fs');
+const { randomUUID } = require('node:crypto');
 const os = require('node:os');
 const path = require('node:path');
+
+const AUTH_FIELDS = [
+  'endpoint', 'username', 'password', 'token', 'longToken', 'secret',
+  'credentialVersion', 'secretFormat'
+];
+const REQUIRED_CREDENTIAL_FIELDS = ['endpoint', 'username', 'password'];
+const SERVER_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
+
+class ConfigurationError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'ConfigurationError';
+    this.exitCode = 1;
+  }
+}
+
+function pickCredentials(record) {
+  return Object.fromEntries(
+    AUTH_FIELDS
+      .filter((field) => Object.prototype.hasOwnProperty.call(record, field))
+      .map((field) => [field, record[field]])
+  );
+}
+
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isValidServerName(name) {
+  return typeof name === 'string' && SERVER_NAME_PATTERN.test(name);
+}
+
+function sameKnownCredentials(left, right) {
+  return AUTH_FIELDS.every((field) => left[field] === right[field]);
+}
+
+function validateCredentialRecord(record, label) {
+  if (!isPlainObject(record) ||
+      REQUIRED_CREDENTIAL_FIELDS.some((field) =>
+    typeof record[field] !== 'string' || record[field].length === 0)) {
+    throw new ConfigurationError(`Invalid credentials for server "${label}".`);
+  }
+}
 
 class Settings {
   constructor(homeDir = os.homedir()) {
@@ -14,6 +58,7 @@ class Settings {
 
   _ensureDir() {
     fs.mkdirSync(this.settingsDir, { recursive: true, mode: 0o700 });
+    fs.chmodSync(this.settingsDir, 0o700);
   }
 
   load() {
@@ -21,19 +66,22 @@ class Settings {
     try {
       return JSON.parse(fs.readFileSync(this.settingsPath, 'utf8'));
     } catch (error) {
-      console.error(error instanceof SyntaxError
+      throw new ConfigurationError(error instanceof SyntaxError
         ? 'Failed to load settings: invalid JSON.'
         : 'Failed to load settings.');
-      return null;
     }
   }
 
   save(data) {
     this._ensureDir();
+    const temporaryPath = `${this.settingsPath}.${process.pid}.${randomUUID()}.tmp`;
     try {
-      fs.writeFileSync(this.settingsPath, JSON.stringify(data, null, 2), { mode: 0o600 });
+      fs.writeFileSync(temporaryPath, JSON.stringify(data, null, 2), { mode: 0o600 });
+      fs.chmodSync(temporaryPath, 0o600);
+      fs.renameSync(temporaryPath, this.settingsPath);
       fs.chmodSync(this.settingsPath, 0o600);
     } catch (error) {
+      fs.rmSync(temporaryPath, { force: true });
       console.error('Failed to save settings.');
       throw error;
     }
@@ -43,38 +91,96 @@ class Settings {
     if (fs.existsSync(this.settingsPath)) fs.unlinkSync(this.settingsPath);
   }
 
-  clearCredentials() {
-    const existingSettings = this.load();
-    if (!existingSettings) return;
-    const authFields = [
-      'endpoint', 'username', 'password', 'token', 'longToken', 'secret',
-      'credentialVersion', 'secretFormat'
-    ];
-    authFields.forEach((field) => delete existingSettings[field]);
-    this.save(existingSettings);
+  clearCredentials(serverName = 'default') {
+    const data = this._loadCredentialSettings();
+    if (!Object.prototype.hasOwnProperty.call(data.servers, serverName)) {
+      return false;
+    }
+    const servers = { ...data.servers };
+    delete servers[serverName];
+    this.save({ ...data, servers });
+    return true;
   }
 
   exists() {
     return fs.existsSync(this.settingsPath);
   }
 
-  getCredentials() {
-    const data = this.load();
-    if (!data) return null;
-    const fields = [
-      'endpoint', 'username', 'password', 'token', 'longToken', 'secret',
-      'credentialVersion', 'secretFormat'
-    ];
-    return Object.fromEntries(fields.map((field) => [field, data[field]]));
+  _loadCredentialSettings() {
+    const data = this.load() || {};
+    if (!isPlainObject(data)) {
+      throw new ConfigurationError('Invalid settings structure.');
+    }
+    const servers = data.servers === undefined ? {} : data.servers;
+    if (!isPlainObject(servers)) {
+      throw new ConfigurationError('Invalid servers configuration.');
+    }
+    for (const [name, credentials] of Object.entries(servers)) {
+      if (!isValidServerName(name)) {
+        throw new ConfigurationError(`Invalid server name in settings: "${name}".`);
+      }
+      validateCredentialRecord(credentials, name);
+    }
+    const hasLegacy = AUTH_FIELDS.some((field) =>
+      Object.prototype.hasOwnProperty.call(data, field));
+    if (!hasLegacy) return { ...data, servers };
+    const legacy = pickCredentials(data);
+    validateCredentialRecord(legacy, 'default');
+    if (data.servers?.default &&
+        !sameKnownCredentials(legacy, data.servers.default)) {
+      throw new ConfigurationError(
+        'Conflicting legacy credentials and servers.default were found.'
+      );
+    }
+
+    const migrated = {
+      ...data,
+      servers: {
+        ...servers,
+        default: data.servers?.default || legacy
+      }
+    };
+    AUTH_FIELDS.forEach((field) => delete migrated[field]);
+    this.save(migrated);
+    return migrated;
   }
 
-  saveCredentials(credentials) {
-    const existingSettings = this.load() || {};
-    this.save({
-      ...existingSettings,
+  listServers() {
+    const data = this._loadCredentialSettings();
+    return Object.entries(data.servers).map(([name, credentials]) => ({
+      name,
+      endpoint: credentials.endpoint,
+      username: credentials.username
+    }));
+  }
+
+  getCredentials(serverName = 'default') {
+    const data = this._loadCredentialSettings();
+    const credentials = data.servers[serverName];
+    return credentials ? pickCredentials(credentials) : null;
+  }
+
+  saveCredentials(serverName, credentials) {
+    if (typeof serverName === 'object' && credentials === undefined) {
+      credentials = serverName;
+      serverName = 'default';
+    }
+    if (!isValidServerName(serverName)) {
+      throw new ConfigurationError(`Invalid server name: "${serverName}".`);
+    }
+    const data = this._loadCredentialSettings();
+    const record = pickCredentials({
       credentialVersion: 2,
       secretFormat: 'decrypted-v1',
       ...credentials
+    });
+    validateCredentialRecord(record, serverName);
+    this.save({
+      ...data,
+      servers: {
+        ...data.servers,
+        [serverName]: record
+      }
     });
   }
 }
@@ -82,3 +188,6 @@ class Settings {
 const settings = new Settings();
 module.exports = settings;
 module.exports.Settings = Settings;
+module.exports.ConfigurationError = ConfigurationError;
+module.exports.SERVER_NAME_PATTERN = SERVER_NAME_PATTERN;
+module.exports.isValidServerName = isValidServerName;
