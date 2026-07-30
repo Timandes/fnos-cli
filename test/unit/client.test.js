@@ -48,7 +48,9 @@ class FakeClient {
 function dependencies(client, saved = []) {
   return {
     sdk: { FnosClient: class { constructor() { return client; } } },
-    settings: { saveCredentials: (value) => saved.push(value) },
+    settings: {
+      saveCredentials: (serverName, value) => saved.push([serverName, value])
+    },
     logger: { info() {}, debug() {} },
     saved
   };
@@ -71,33 +73,40 @@ describe('fnos client authentication', () => {
     );
     assert.deepEqual(client.calls[0], ['connect', 'wss://host:5667', 60000, false, false]);
     assert.equal(client.calls[1][0], 'login');
-    assert.deepEqual(deps.saved[0], {
+    assert.deepEqual(deps.saved[0], ['default', {
       endpoint: 'wss://host:5667', username: 'admin', password: 'pw',
       credentialVersion: 2, token: 'token', longToken: 'long',
       secret: 'decrypted', secretFormat: 'decrypted-v1'
-    });
+    }]);
   });
 
   it('uses valid versioned tokens before password login', async () => {
     requireClientApi();
     const client = new FakeClient();
+    const deps = dependencies(client);
     await clientUtils.createClientWithCredentials({
-      endpoint: 'host:5666', username: 'admin', password: 'pw', source: 'settings_file',
+      endpoint: 'host:5666', username: 'admin', password: 'pw',
+      source: 'settings_file', serverName: 'default',
       credentialVersion: 2, token: 'token', longToken: 'long', secret: 'decrypted', secretFormat: 'decrypted-v1'
-    }, {}, dependencies(client));
+    }, {}, deps);
     assert.equal(client.calls[1][0], 'loginViaToken');
     assert.ok(!client.calls.some(([name]) => name === 'login'));
+    assert.equal(deps.saved.length, 0);
   });
 
   it('falls back from rejected token login to password login', async () => {
     requireClientApi();
     const client = new FakeClient();
     client.tokenResult = { result: 'fail', errno: 1, errmsg: 'invalid token', data: {}, reqid: 'token-2' };
+    const deps = dependencies(client);
     await clientUtils.createClientWithCredentials({
-      endpoint: 'host:5666', username: 'admin', password: 'pw', source: 'settings_file',
+      endpoint: 'office:5666', username: 'admin', password: 'pw',
+      source: 'settings_file', serverName: 'office',
       credentialVersion: 2, token: 'token', longToken: 'long', secret: 'decrypted', secretFormat: 'decrypted-v1'
-    }, {}, dependencies(client));
+    }, {}, deps);
     assert.ok(client.calls.some(([name]) => name === 'login'));
+    assert.equal(deps.saved[0][0], 'office');
+    assert.equal(deps.saved[0][1].endpoint, 'office:5666');
   });
 
   it('maps rejected password authentication to exit code 3', async () => {
@@ -105,16 +114,24 @@ describe('fnos client authentication', () => {
     const client = new FakeClient();
     client.loginResponse = { result: 'fail', errmsg: 'Invalid credentials' };
     client.loginError = new Error('Invalid credentials');
+    const deps = dependencies(client);
     await assert.rejects(
       clientUtils.createClientWithCredentials(
-        { endpoint: 'host:5666', username: 'admin', password: 'wrong', source: 'command_line' },
+        {
+          endpoint: 'host:5666',
+          username: 'admin',
+          password: 'wrong',
+          source: 'settings_file',
+          serverName: 'default'
+        },
         {},
-        dependencies(client)
+        deps
       ),
       (error) => error instanceof clientUtils.AuthenticationError &&
         error.exitCode === 3 && error.message === 'Invalid credentials'
     );
     assert.equal(client.closed, true);
+    assert.equal(deps.saved.length, 0);
   });
 
   it('preserves password login connection and protocol errors', async () => {
@@ -220,6 +237,23 @@ describe('fnos client authentication', () => {
       clientUtils.createClient({}, dependencies(new FakeClient())),
       (error) => error instanceof clientUtils.AuthenticationError && error.exitCode === 3
     );
+  });
+
+  it('saves an explicit login to its requested server name', async () => {
+    requireClientApi();
+    const client = new FakeClient();
+    const deps = dependencies(client);
+
+    await clientUtils.createClient({
+      endpoint: 'home:5666',
+      username: 'admin',
+      password: 'pw',
+      saveCredentials: true,
+      serverName: 'home'
+    }, deps);
+
+    assert.equal(deps.saved[0][0], 'home');
+    assert.equal(deps.saved[0][1].endpoint, 'home:5666');
   });
 
   it('registers exactly the 21 approved SDK classes', () => {

@@ -114,7 +114,8 @@ async function createClientWithCredentials(credentials, options = {}, dependenci
         if (typeof decryptedSecret !== 'string' || decryptedSecret.length === 0) {
           throw new AuthenticationError('Login secret decryption failed.');
         }
-        settingsStore.saveCredentials({
+        const serverName = options.serverName || credentials.serverName || 'default';
+        settingsStore.saveCredentials(serverName, {
           endpoint: credentials.endpoint,
           username: credentials.username,
           password: credentials.password,

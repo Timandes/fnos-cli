@@ -118,12 +118,29 @@ describe('credential settings', () => {
   it('stores versioned credentials with mode 0600 and preserves unrelated data on logout', () => {
     const store = settingsStore();
     store.save({ theme: 'dark' });
-    store.saveCredentials({ endpoint: 'host:5666', username: 'admin', password: 'pw' });
+    store.saveCredentials('default', {
+      endpoint: 'host:5666',
+      username: 'admin',
+      password: 'pw'
+    });
     assert.equal(fs.statSync(store.settingsPath).mode & 0o777, 0o600);
     assert.equal(store.getCredentials().credentialVersion, 2);
     assert.equal(store.getCredentials().secretFormat, 'decrypted-v1');
     store.clearCredentials();
     assert.deepEqual(store.load(), { servers: {}, theme: 'dark' });
+  });
+
+  it('requires an explicit server name when saving credentials', () => {
+    const store = settingsStore();
+
+    assert.throws(
+      () => store.saveCredentials({
+        endpoint: 'host:5666',
+        username: 'admin',
+        password: 'pw'
+      }),
+      (error) => error.name === 'ConfigurationError'
+    );
   });
 
   it('stores independent credentials under server names', () => {

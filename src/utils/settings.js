@@ -161,10 +161,6 @@ class Settings {
   }
 
   saveCredentials(serverName, credentials) {
-    if (typeof serverName === 'object' && credentials === undefined) {
-      credentials = serverName;
-      serverName = 'default';
-    }
     if (!isValidServerName(serverName)) {
       throw new ConfigurationError(`Invalid server name: "${serverName}".`);
     }
