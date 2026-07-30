@@ -12,6 +12,23 @@ function renderCommandReference() {
     '# Command Reference',
     '',
     `fnos-cli exposes ${COMMAND_COUNT} commands across ${DOMAIN_COUNT} domains.`,
+    '',
+    '## Shared Authentication Options',
+    '',
+    'Every business command accepts these authentication options.',
+    '',
+    '| Option | Description |',
+    '|---|---|',
+    '| `-s, --server <name>` | Saved server name. |',
+    '| `-e, --endpoint <endpoint>` | Temporary server endpoint. |',
+    '| `-u, --username <username>` | Temporary username. |',
+    '| `-p, --password <password>` | Temporary password. |',
+    '| `--twofa-code <code>` | Six-digit two-factor code. |',
+    '| `--trust-device` | Trust this device after two-factor login. |',
+    '| `--verify-ssl` | Verify the WSS server certificate. |',
+    '',
+    '`--server` cannot be combined with `-e`, `-u`, or `-p`. ' +
+      'Temporary endpoint, username, and password must be supplied together.',
     ''
   ];
   for (const [domainName, domain] of Object.entries(COMMAND_CATALOG)) {

@@ -5,6 +5,18 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased]
+
+### 新增
+
+- login、logout 和全部业务命令支持使用 `--server` 管理和选择多 server 凭证
+- 多个已保存 server 可在交互终端中通过编号列表选择
+
+### 变更
+
+- 旧版顶层单 server 凭证会一次性升级为 `servers.default`
+- 非交互环境存在多个 server 时必须显式提供 `--server`
+
 ## [0.3.0] - 2026-07-20
 
 ### 新增

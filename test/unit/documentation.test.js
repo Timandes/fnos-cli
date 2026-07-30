@@ -29,6 +29,8 @@ describe('release documentation', () => {
     assert.equal(actual, renderCommandReference());
     assert.doesNotMatch(actual, /\n\n$/, 'command reference must end with exactly one newline');
     assert.match(actual, /111 commands across 21 domains/);
+    assert.match(actual, /-s, --server <name>/);
+    assert.match(actual, /Saved server name/);
     assert.match(actual, /`docker\.listContainers`/);
     assert.match(actual, /`security\.getProcessTraffic`/);
   });

@@ -8,7 +8,7 @@
 ## 功能
 
 - 提供 21 个业务领域、111 条查询命令
-- 支持密码登录、token 重用和两步验证
+- 支持命名多 server、密码登录、token 重用和两步验证
 - 支持 `ws://`、`wss://` 以及可选的严格证书验证
 - 支持原始 JSON 和格式化输出
 - 密码、验证码、token、secret 和签名材料统一日志脱敏
@@ -33,13 +33,25 @@ npm link
 
 ## 登录与认证
 
-首次使用可保存登录凭证：
+首次使用可保存登录凭证，也可以用 `--server` 为不同 fnOS server 命名：
 
 ```bash
 fnos login -e nas.example.com:5666 -u admin -p password
+fnos login --server office -e office.example.com:5666 -u admin -p password
+fnos sysinfo.getHostName --server office
+fnos logout --server office
 ```
 
-设置写入 `~/.fnos/settings.json`。后续命令会优先重用有效 token；token 失效时回退到密码登录并升级旧凭证格式。
+设置按名称写入 `~/.fnos/settings.json` 的 `servers.<name>`。未指定
+`--server` 的 login 保存为 `default`。业务命令和 logout 在只有一个已保存
+server 时自动选择；有多个时在交互终端显示编号列表。在 CI、管道等非交互环境中
+存在多个 server 时，必须显式提供 `--server`。
+
+旧版顶层单 server 凭证会在首次凭证访问时一次性迁移为
+`servers.default`。升级后的配置不再供旧版 CLI 读取。
+
+后续命令会优先重用所选 server 的有效 token；token 失效时回退到该记录的密码
+登录，并把新 token 写回同一个 server。
 
 也可为单条业务命令临时提供完整凭证，这些参数不会写入设置：
 
@@ -47,7 +59,8 @@ fnos login -e nas.example.com:5666 -u admin -p password
 fnos resmon.cpu -e nas.example.com:5666 -u admin -p password
 ```
 
-`-e`、`-u`、`-p` 必须同时提供。退出并只清除认证字段：
+`-e`、`-u`、`-p` 必须同时提供，且不能与 `--server` 混用。退出并只清除选中
+server 的认证记录：
 
 ```bash
 fnos logout
