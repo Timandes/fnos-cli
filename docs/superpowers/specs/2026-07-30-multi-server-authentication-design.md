@@ -163,6 +163,15 @@ Server [1-2]:
 
 `servers` 是以名称为键的对象映射。配置不保存列表顺序，也不保存默认选择或活动 server。每个记录独立包含现有完整凭证字段。
 
+已知认证字段固定为：
+
+```text
+endpoint, username, password, token, longToken, secret,
+credentialVersion, secretFormat
+```
+
+合法 server 记录至少要求 `endpoint`、`username` 和 `password` 是非空字符串。token 相关字段可以缺失，以兼容尚未升级 token 格式的密码凭证；一旦用于 token 登录，则继续遵守现有 `credentialVersion === 2`、`secretFormat === "decrypted-v1"` 以及 token、long token、secret 均为非空字符串的条件。未知的 server 记录字段不参与认证，也不应在更新凭证时被复制到新的规范记录。
+
 ## 配置迁移
 
 迁移提供新 CLI 读取旧配置的向前兼容，不提供升级后的旧 CLI 降级兼容。
@@ -173,10 +182,11 @@ Server [1-2]:
 
 ### 迁移规则
 
+- 顶层任一已知认证字段存在时，视为存在旧格式候选；若候选缺少合法 server 记录所需字段，则报告配置错误，不迁移。
 - 只有旧版顶层凭证：移动到 `servers.default`，删除所有顶层认证字段，保留其他设置。
 - 已有 `servers`，顶层也有旧凭证，但没有 `servers.default`：把顶层凭证移动到 `servers.default`，保留其他命名 server。
-- 顶层旧凭证与 `servers.default` 完全相同：删除重复的顶层认证字段。
-- 顶层旧凭证与 `servers.default` 不同：报告配置冲突，不选择其中任何一份，也不修改文件。
+- 顶层旧凭证与 `servers.default` 在全部已知认证字段上相同：删除重复的顶层认证字段。
+- 顶层旧凭证与 `servers.default` 在任一已知认证字段上不同：报告配置冲突，不选择其中任何一份，也不修改文件。
 - `servers` 不是普通对象，或任意 server 记录结构非法：报告配置错误，不自动跳过记录或覆盖文件。
 
 迁移保存必须使用失败安全的替换方式。写入或替换失败时，原设置文件保持不变。成功后只保留新结构，不长期双写两套凭证。
@@ -191,7 +201,7 @@ Server [1-2]:
 
 - 检测和执行旧格式迁移。
 - 校验 `servers` 对象和 server 名称。
-- 列出排序后的 server 摘要。
+- 列出 server 的非敏感摘要；返回顺序不构成接口契约。
 - 按名称读取完整凭证。
 - 按名称新增或替换完整凭证。
 - 按名称删除凭证并保留其他设置。
@@ -212,7 +222,7 @@ clearCredentials(serverName) -> boolean
 
 - 实现零项、单项和多项规则。
 - 检测是否可交互。
-- 生成稳定排序的非敏感列表。
+- 对 settings 返回的摘要执行 `default` 优先、其余名称字典序的稳定排序。
 - 读取、校验和重复提示编号。
 - 允许注入输入输出依赖，以便离线测试。
 
