@@ -47,7 +47,7 @@ function registerLogoutCommand(program, dependencies = {}) {
   command.action(async (options) => {
     try {
       const servers = store.listServers();
-      if (servers.length === 0) {
+      if (servers.length === 0 && options.server === undefined) {
         stdout('No saved credentials found.');
         process.exitCode = 0;
         return;

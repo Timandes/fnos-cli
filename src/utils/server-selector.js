@@ -27,6 +27,18 @@ function sortServers(servers) {
   });
 }
 
+function escapeTerminalValue(value) {
+  return String(value).replace(
+    /[\u0000-\u001f\u007f-\u009f]/g,
+    (character) => {
+      if (character === '\n') return '\\n';
+      if (character === '\r') return '\\r';
+      if (character === '\t') return '\\t';
+      return `\\u${character.codePointAt(0).toString(16).padStart(4, '0')}`;
+    }
+  );
+}
+
 async function selectServer(servers, dependencies = {}) {
   const ordered = sortServers(servers);
   if (ordered.length === 0) {
@@ -47,7 +59,9 @@ async function selectServer(servers, dependencies = {}) {
   output.write('Select a server:\n');
   ordered.forEach((server, index) => {
     output.write(
-      `  ${index + 1}) ${server.name}  ${server.endpoint}  (${server.username})\n`
+      `  ${index + 1}) ${server.name}  ` +
+      `${escapeTerminalValue(server.endpoint)}  ` +
+      `(${escapeTerminalValue(server.username)})\n`
     );
   });
 

@@ -18,6 +18,19 @@ function settingsStore() {
 }
 
 describe('credential settings', () => {
+  it('exports the known authentication fields', () => {
+    assert.deepEqual(settingsModule.AUTH_FIELDS, [
+      'endpoint',
+      'username',
+      'password',
+      'token',
+      'longToken',
+      'secret',
+      'credentialVersion',
+      'secretFormat'
+    ]);
+  });
+
   it('migrates legacy credentials to default and preserves unrelated settings', () => {
     const store = settingsStore();
     store.save({
@@ -311,5 +324,32 @@ describe('credential settings', () => {
 
     assert.deepEqual(store.load(), { theme: 'before' });
     assert.deepEqual(errors, ['Failed to save settings.']);
+  });
+
+  it('performs no fallible permission update after replacing settings', () => {
+    const store = settingsStore();
+    store.save({ theme: 'before' });
+    const originalRenameSync = fs.renameSync;
+    const originalChmodSync = fs.chmodSync;
+    let replaced = false;
+    fs.renameSync = (source, target) => {
+      const result = originalRenameSync(source, target);
+      if (target === store.settingsPath) replaced = true;
+      return result;
+    };
+    fs.chmodSync = (target, mode) => {
+      if (replaced && target === store.settingsPath) {
+        throw new Error('post-replacement chmod failed');
+      }
+      return originalChmodSync(target, mode);
+    };
+    try {
+      assert.doesNotThrow(() => store.save({ theme: 'after' }));
+    } finally {
+      fs.renameSync = originalRenameSync;
+      fs.chmodSync = originalChmodSync;
+    }
+
+    assert.deepEqual(store.load(), { theme: 'after' });
   });
 });

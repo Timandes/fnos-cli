@@ -193,6 +193,33 @@ describe('authentication commands', () => {
     assert.equal(result.stdout, 'EMPTY_LOGOUT_OK');
   });
 
+  it('rejects an explicit logout target when no servers are saved', () => {
+    const result = runScript(`
+      const assert = require('node:assert/strict');
+      const { Command } = require('commander');
+      const { registerLogoutCommand } = require('./src/commands/auth');
+      const output = [];
+      const errors = [];
+      const program = new Command();
+      registerLogoutCommand(program, {
+        settings: {
+          listServers: () => [],
+          clearCredentials: () => { throw new Error('must not clear'); }
+        },
+        stdout: (value) => output.push(value),
+        stderr: (value) => errors.push(value)
+      });
+      program.parseAsync(['node', 'fnos', 'logout', '-s', 'office']).then(() => {
+        assert.equal(output.length, 0);
+        assert.match(errors[0], /office/);
+        assert.equal(process.exitCode, 3);
+        process.stdout.write('EMPTY_NAMED_LOGOUT_OK');
+      });
+    `);
+    assert.equal(result.status, 3, result.stderr);
+    assert.equal(result.stdout, 'EMPTY_NAMED_LOGOUT_OK');
+  });
+
   it('uses the server selector before logging out from multiple servers', () => {
     const result = runScript(`
       const assert = require('node:assert/strict');

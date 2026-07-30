@@ -104,6 +104,50 @@ describe('credential resolution', () => {
     );
   });
 
+  it('rejects mixing a saved server with an empty temporary credential', async () => {
+    await assert.rejects(
+      resolveCredentials(
+        { server: 'office', password: '' },
+        {
+          settingsStore: {
+            listServers: () => [
+              { name: 'office', endpoint: 'office:5666', username: 'office-user' }
+            ],
+            getCredentials: () => ({
+              endpoint: 'office:5666',
+              username: 'office-user',
+              password: 'office-pw'
+            })
+          }
+        }
+      ),
+      (error) => error.name === 'CommandParameterError' &&
+        error.exitCode === 4
+    );
+  });
+
+  it('rejects empty temporary credentials instead of using saved credentials', async () => {
+    await assert.rejects(
+      resolveCredentials(
+        { endpoint: '', username: '', password: '' },
+        {
+          settingsStore: {
+            listServers: () => [
+              { name: 'default', endpoint: 'saved:5666', username: 'saved-user' }
+            ],
+            getCredentials: () => ({
+              endpoint: 'saved:5666',
+              username: 'saved-user',
+              password: 'saved-pw'
+            })
+          }
+        }
+      ),
+      (error) => error.message === 'PARTIAL_CREDENTIALS' &&
+        error.exitCode === 3
+    );
+  });
+
   it('uses the selector when multiple servers are available', async () => {
     const summaries = [
       { name: 'default', endpoint: 'home:5666', username: 'home-user' },

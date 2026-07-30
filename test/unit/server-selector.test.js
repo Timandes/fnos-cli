@@ -94,6 +94,34 @@ describe('server selector', () => {
     assert.doesNotMatch(rendered, /password|token|secret/i);
   });
 
+  it('escapes terminal control characters in server summaries', async () => {
+    const target = output();
+    const unsafeServers = [
+      {
+        name: 'default',
+        endpoint: 'safe\n2) forged',
+        username: '\u001b[31madmin'
+      },
+      {
+        name: 'office',
+        endpoint: 'office:5666',
+        username: 'office-user'
+      }
+    ];
+
+    await selector.selectServer(unsafeServers, {
+      input: { isTTY: true },
+      output: target,
+      prompt: async () => '1'
+    });
+
+    const rendered = target.values.join('');
+    assert.doesNotMatch(rendered, /safe\n2\) forged/);
+    assert.doesNotMatch(rendered, /\u001b/);
+    assert.match(rendered, /safe\\n2\) forged/);
+    assert.match(rendered, /\\u001b\[31madmin/);
+  });
+
   it('maps a closed prompt to a server selection error', async () => {
     await assert.rejects(
       selector.selectServer(servers.slice(0, 2), {

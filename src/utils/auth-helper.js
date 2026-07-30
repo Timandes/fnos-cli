@@ -13,8 +13,10 @@ const { CommandParameterError } = require('../commands/options');
  */
 function hasPartialCredentials(options) {
   const { endpoint, username, password } = options;
-  const provided = [endpoint, username, password].filter(Boolean);
-  return provided.length > 0 && provided.length < 3;
+  const values = [endpoint, username, password];
+  const provided = values.filter((value) => value !== undefined);
+  return provided.length > 0 &&
+    (provided.length < values.length || values.some((value) => !value));
 }
 
 function credentialError(message) {
@@ -67,7 +69,7 @@ async function resolveCredentials(options, dependencies = {}) {
     options.endpoint,
     options.username,
     options.password
-  ].some(Boolean);
+  ].some((value) => value !== undefined);
   if (options.server !== undefined && hasTemporaryCredential) {
     throw new CommandParameterError(
       '--server cannot be combined with -e/--endpoint, -u/--username, or -p/--password.'

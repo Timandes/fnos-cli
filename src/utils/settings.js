@@ -79,7 +79,6 @@ class Settings {
       fs.writeFileSync(temporaryPath, JSON.stringify(data, null, 2), { mode: 0o600 });
       fs.chmodSync(temporaryPath, 0o600);
       fs.renameSync(temporaryPath, this.settingsPath);
-      fs.chmodSync(this.settingsPath, 0o600);
     } catch (error) {
       fs.rmSync(temporaryPath, { force: true });
       console.error('Failed to save settings.');
@@ -184,6 +183,7 @@ class Settings {
 const settings = new Settings();
 module.exports = settings;
 module.exports.Settings = Settings;
+module.exports.AUTH_FIELDS = AUTH_FIELDS;
 module.exports.ConfigurationError = ConfigurationError;
 module.exports.SERVER_NAME_PATTERN = SERVER_NAME_PATTERN;
 module.exports.isValidServerName = isValidServerName;
