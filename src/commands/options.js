@@ -1,4 +1,5 @@
 const { Option } = require('commander');
+const { isValidServerName } = require('../utils/settings');
 
 class CommandParameterError extends Error {
   constructor(message) {
@@ -109,7 +110,26 @@ function registerBusinessOptions(command, definitions) {
   return command;
 }
 
+function parseServerName(value) {
+  if (!isValidServerName(value)) {
+    throw new CommandParameterError(
+      '--server must match [A-Za-z0-9][A-Za-z0-9._-]{0,63}.'
+    );
+  }
+  return value;
+}
+
+function registerServerOption(command) {
+  command.option(
+    '-s, --server <name>',
+    'Saved server name',
+    parseServerName
+  );
+  return command;
+}
+
 function registerAuthenticationOptions(command, requiredCredentials = false) {
+  registerServerOption(command);
   const add = requiredCredentials ? 'requiredOption' : 'option';
   command[add]('-e, --endpoint <endpoint>', 'Server endpoint, including optional ws:// or wss:// prefix');
   command[add]('-u, --username <username>', 'Username');
@@ -123,6 +143,8 @@ function registerAuthenticationOptions(command, requiredCredentials = false) {
 module.exports = {
   CommandParameterError,
   buildMethodArguments,
+  parseServerName,
   registerAuthenticationOptions,
-  registerBusinessOptions
+  registerBusinessOptions,
+  registerServerOption
 };

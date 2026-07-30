@@ -1,5 +1,6 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { describe, it } = require('mocha');
@@ -28,5 +29,36 @@ describe('CLI program', () => {
     });
     assert.equal(result.status, 0, result.stderr);
     assert.equal(result.stdout, 'PROGRAM_OK');
+  });
+
+  it('requires --server for multiple saved servers in a non-interactive shell', () => {
+    const homeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fnos-program-'));
+    const settingsDir = path.join(homeDir, '.fnos');
+    fs.mkdirSync(settingsDir);
+    fs.writeFileSync(path.join(settingsDir, 'settings.json'), JSON.stringify({
+      servers: {
+        default: { endpoint: '127.0.0.1:1', username: 'admin', password: 'pw' },
+        office: { endpoint: '127.0.0.1:2', username: 'admin', password: 'pw' }
+      }
+    }));
+
+    try {
+      const result = spawnSync(
+        process.execPath,
+        [path.resolve(__dirname, '../../bin/fnos'), 'sysinfo.getHostName'],
+        {
+          cwd: path.resolve(__dirname, '../..'),
+          env: { ...process.env, HOME: homeDir },
+          encoding: 'utf8'
+        }
+      );
+
+      assert.equal(result.status, 3, result.stderr);
+      assert.match(result.stderr, /--server/);
+      assert.match(result.stderr, /default/);
+      assert.match(result.stderr, /office/);
+    } finally {
+      fs.rmSync(homeDir, { recursive: true, force: true });
+    }
   });
 });

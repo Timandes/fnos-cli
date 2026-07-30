@@ -61,6 +61,40 @@ describe('command runner', () => {
     assert.equal(closed, 1);
   });
 
+  it('awaits asynchronous credential resolution before creating a client', async () => {
+    requireRunner();
+    const expected = {
+      endpoint: 'host:5666',
+      username: 'admin',
+      password: 'pw',
+      source: 'settings_file',
+      serverName: 'office'
+    };
+    let received;
+    const client = { close: () => {} };
+    const code = await runner.runCommand({
+      domain: COMMAND_CATALOG.network,
+      definition: COMMAND_CATALOG.network.commands.list,
+      options: { server: 'office' },
+      globalOptions: {}
+    }, {
+      resolveCredentials: async () => {
+        await Promise.resolve();
+        return expected;
+      },
+      createClient: async (options) => {
+        received = options.credentials;
+        return client;
+      },
+      getSDKInstance: () => ({ list: async () => ({ result: 'succ' }) }),
+      stdout: () => {},
+      stderr: () => {}
+    });
+
+    assert.equal(code, 0);
+    assert.deepEqual(received, expected);
+  });
+
   it('reports both HTTPS redirect addresses and returns exit code 1', async () => {
     requireRunner();
     const errors = [];

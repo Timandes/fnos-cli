@@ -17,6 +17,7 @@ const missingCompiler = () => assert.fail('command option compiler must be imple
 const buildMethodArguments = optionCompiler.buildMethodArguments || missingCompiler;
 const registerAuthenticationOptions = optionCompiler.registerAuthenticationOptions || missingCompiler;
 const registerBusinessOptions = optionCompiler.registerBusinessOptions || missingCompiler;
+const registerServerOption = optionCompiler.registerServerOption || missingCompiler;
 const CommandParameterError = optionCompiler.CommandParameterError || Error;
 
 describe('command option compiler', () => {
@@ -68,5 +69,38 @@ describe('command option compiler', () => {
     assert.deepEqual(buildMethodArguments(COMMAND_CATALOG.store.commands.listDisk, command.opts(), 10000), [false, 10000]);
     assert.ok(command.options.some((option) => option.long === '--twofa-code'));
     assert.ok(command.options.some((option) => option.long === '--verify-ssl'));
+  });
+
+  it('registers the shared server option', () => {
+    const command = new Command('network-list').exitOverride();
+    registerServerOption(command);
+
+    command.parse(
+      ['node', 'network-list', '--server', 'office-nas'],
+      { from: 'node' }
+    );
+
+    assert.equal(command.opts().server, 'office-nas');
+    assert.deepEqual(command.options.map(({ long }) => long), ['--server']);
+  });
+
+  it('includes the shared server option with authentication options', () => {
+    const command = new Command('network-list').exitOverride();
+    registerAuthenticationOptions(command);
+
+    assert.ok(command.options.some(({ long }) => long === '--server'));
+  });
+
+  it('rejects server names outside the portable format', () => {
+    const command = new Command('network-list').exitOverride();
+    registerServerOption(command);
+
+    assert.throws(
+      () => command.parse(
+        ['node', 'network-list', '--server', 'bad name'],
+        { from: 'node' }
+      ),
+      (error) => error instanceof CommandParameterError && error.exitCode === 4
+    );
   });
 });

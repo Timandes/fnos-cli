@@ -1,25 +1,134 @@
 const assert = require('node:assert/strict');
 const { describe, it } = require('mocha');
-const { resolveCredentials } = require('../../src/utils/auth-helper');
+const {
+  resolveCredentials,
+  resolveServerName
+} = require('../../src/utils/auth-helper');
 
 describe('credential resolution', () => {
-  it('uses an injected settings store for saved credentials', () => {
+  it('automatically resolves the only saved server', async () => {
     const store = {
-      getCredentials: () => ({ endpoint: 'saved:5666', username: 'saved', password: 'saved-pw' })
+      listServers: () => [
+        { name: 'default', endpoint: 'saved:5666', username: 'saved' }
+      ],
+      getCredentials: () => ({
+        endpoint: 'saved:5666',
+        username: 'saved',
+        password: 'saved-pw'
+      })
     };
-    let credentials;
-    assert.doesNotThrow(() => { credentials = resolveCredentials({}, store); });
+
+    const credentials = await resolveCredentials({}, { settingsStore: store });
+
     assert.equal(credentials.source, 'settings_file');
+    assert.equal(credentials.serverName, 'default');
   });
 
-  it('maps partial and missing credentials to authentication exit code 3', () => {
-    assert.throws(
-      () => resolveCredentials({ endpoint: 'partial:5666' }, { getCredentials: () => null }),
+  it('preserves authentication exit code 3 for partial temporary credentials', async () => {
+    await assert.rejects(
+      resolveCredentials({ endpoint: 'partial:5666' }),
       (error) => error.message === 'PARTIAL_CREDENTIALS' && error.exitCode === 3
     );
-    assert.throws(
-      () => resolveCredentials({}, { getCredentials: () => null }),
+  });
+
+  it('preserves authentication exit code 3 when no server is saved', async () => {
+    await assert.rejects(
+      resolveCredentials({}, {
+        settingsStore: {
+          listServers: () => [],
+          getCredentials: () => null
+        }
+      }),
       (error) => error.exitCode === 3
     );
+  });
+
+  it('resolves explicitly named saved credentials', async () => {
+    const records = {
+      default: {
+        endpoint: 'home:5666',
+        username: 'home-user',
+        password: 'home-pw'
+      },
+      office: {
+        endpoint: 'office:5666',
+        username: 'office-user',
+        password: 'office-pw'
+      }
+    };
+    const settingsStore = {
+      listServers: () => Object.entries(records).map(([name, credentials]) => ({
+        name,
+        endpoint: credentials.endpoint,
+        username: credentials.username
+      })),
+      getCredentials: (name) => records[name] || null
+    };
+
+    const credentials = await resolveCredentials(
+      { server: 'office' },
+      { settingsStore }
+    );
+
+    assert.deepEqual(credentials, {
+      ...records.office,
+      source: 'settings_file',
+      serverName: 'office'
+    });
+  });
+
+  it('lists available names when an explicit server does not exist', async () => {
+    const settingsStore = {
+      listServers: () => [
+        { name: 'default', endpoint: 'home:5666', username: 'home-user' },
+        { name: 'office', endpoint: 'office:5666', username: 'office-user' }
+      ]
+    };
+
+    await assert.rejects(
+      resolveServerName('missing', { settingsStore }),
+      (error) => error.exitCode === 3 &&
+        /default/.test(error.message) &&
+        /office/.test(error.message)
+    );
+  });
+
+  it('rejects mixing a saved server with temporary credentials', async () => {
+    await assert.rejects(
+      resolveCredentials({
+        server: 'office',
+        endpoint: 'temporary:5666'
+      }),
+      (error) => error.name === 'CommandParameterError' &&
+        error.exitCode === 4
+    );
+  });
+
+  it('uses the selector when multiple servers are available', async () => {
+    const summaries = [
+      { name: 'default', endpoint: 'home:5666', username: 'home-user' },
+      { name: 'office', endpoint: 'office:5666', username: 'office-user' }
+    ];
+    const settingsStore = {
+      listServers: () => summaries,
+      getCredentials: (name) => ({
+        endpoint: `${name}:5666`,
+        username: `${name}-user`,
+        password: `${name}-pw`
+      })
+    };
+    let received;
+
+    const credentials = await resolveCredentials({}, {
+      settingsStore,
+      select: async (servers) => {
+        received = servers;
+        return 'office';
+      }
+    });
+
+    assert.deepEqual(received, summaries);
+    assert.equal(credentials.serverName, 'office');
+    assert.equal(credentials.endpoint, 'office:5666');
   });
 });

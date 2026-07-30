@@ -14,7 +14,7 @@ async function runCommand(context, dependencies = {}) {
 
   try {
     const args = buildMethodArguments(context.definition, context.options, 10000);
-    const credentials = resolve(context.options);
+    const credentials = await resolve(context.options);
     client = await createClient({
       credentials,
       timeout: 60,

@@ -3,6 +3,8 @@
  */
 
 const settings = require('./settings');
+const { selectServer } = require('./server-selector');
+const { CommandParameterError } = require('../commands/options');
 
 /**
  * Check if partial credentials are provided
@@ -37,13 +39,40 @@ function validateCommandLineCredentials(options) {
   return { isValid: true, hasCredentials };
 }
 
+async function resolveServerName(requestedName, dependencies = {}) {
+  const settingsStore = dependencies.settingsStore || settings;
+  const select = dependencies.select || selectServer;
+  const selectorDependencies = dependencies.selectorDependencies || {};
+  const servers = settingsStore.listServers();
+  if (requestedName !== undefined) {
+    if (!servers.some(({ name }) => name === requestedName)) {
+      const available = servers.map(({ name }) => name).join(', ') || '(none)';
+      throw credentialError(
+        `Saved server "${requestedName}" was not found. Available servers: ${available}.`
+      );
+    }
+    return requestedName;
+  }
+  return select(servers, selectorDependencies);
+}
+
 /**
  * Resolve and return the final credentials to use
  * @param {Object} options - Command line options
  * @returns {Object} - Credentials object
  * @throws {Error} - If no valid credentials are found or partial credentials are provided
  */
-function resolveCredentials(options, settingsStore = settings) {
+async function resolveCredentials(options, dependencies = {}) {
+  const hasTemporaryCredential = [
+    options.endpoint,
+    options.username,
+    options.password
+  ].some(Boolean);
+  if (options.server !== undefined && hasTemporaryCredential) {
+    throw new CommandParameterError(
+      '--server cannot be combined with -e/--endpoint, -u/--username, or -p/--password.'
+    );
+  }
   const validation = validateCommandLineCredentials(options);
 
   if (validation.hasCredentials) {
@@ -56,20 +85,26 @@ function resolveCredentials(options, settingsStore = settings) {
     };
   }
 
-  // Read from settings file
-  const credentials = settingsStore.getCredentials();
+  const settingsStore = dependencies.settingsStore || settings;
+  const serverName = await resolveServerName(options.server, {
+    ...dependencies,
+    settingsStore
+  });
+  const credentials = settingsStore.getCredentials(serverName);
   if (!credentials || !credentials.endpoint || !credentials.username || !credentials.password) {
     throw credentialError('No valid credentials found. Please use "fnos login" or provide -e/-u/-p options.');
   }
 
   return {
     ...credentials,
-    source: 'settings_file'
+    source: 'settings_file',
+    serverName
   };
 }
 
 module.exports = {
   hasPartialCredentials,
   validateCommandLineCredentials,
-  resolveCredentials
+  resolveCredentials,
+  resolveServerName
 };
