@@ -36,6 +36,7 @@ describe('authentication commands', () => {
       program.parseAsync(['node', 'fnos', 'login', '-e', '127.0.0.1:1', '-u', 'admin', '-p', 'pw'])
         .then(() => {
           assert.equal(received.saveCredentials, true);
+          assert.equal(received.serverName, 'default');
           assert.equal(closed, 1);
           assert.equal(process.exitCode, 0);
           process.stdout.write('LOGIN_OK');
@@ -43,6 +44,32 @@ describe('authentication commands', () => {
     `);
     assert.equal(result.status, 0, result.stderr);
     assert.equal(result.stdout, 'LOGIN_OK');
+  });
+
+  it('passes an explicitly named server to login', () => {
+    const result = runScript(`
+      const assert = require('node:assert/strict');
+      const { Command } = require('commander');
+      const { registerLoginCommand } = require('./src/commands/auth');
+      let received;
+      const program = new Command();
+      registerLoginCommand(program, {
+        createClient: async (options) => {
+          received = options;
+          return { close: () => {} };
+        },
+        stderr: () => {}
+      });
+      program.parseAsync([
+        'node', 'fnos', 'login', '-s', 'office',
+        '-e', '127.0.0.1:1', '-u', 'admin', '-p', 'pw'
+      ]).then(() => {
+        assert.equal(received.serverName, 'office');
+        process.stdout.write('NAMED_LOGIN_OK');
+      });
+    `);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout, 'NAMED_LOGIN_OK');
   });
 
   it('redacts sensitive values from login errors', () => {
@@ -90,24 +117,176 @@ describe('authentication commands', () => {
       const assert = require('node:assert/strict');
       const { Command } = require('commander');
       const { registerLogoutCommand } = require('./src/commands/auth');
-      let cleared = 0;
+      let cleared;
       const output = [];
       const program = new Command();
       registerLogoutCommand(program, {
         settings: {
-          getCredentials: () => ({ endpoint: 'host:5666', username: 'admin' }),
-          clearCredentials: () => { cleared += 1; }
+          listServers: () => [
+            { name: 'default', endpoint: 'home:5666', username: 'admin' },
+            { name: 'office', endpoint: 'office:5666', username: 'admin' }
+          ],
+          clearCredentials: (name) => { cleared = name; return true; }
         },
         stdout: (value) => output.push(value)
       });
-      program.parseAsync(['node', 'fnos', 'logout']).then(() => {
-        assert.equal(cleared, 1);
-        assert.match(output[0], /cleared/i);
+      program.parseAsync(['node', 'fnos', 'logout', '-s', 'office']).then(() => {
+        assert.equal(cleared, 'office');
+        assert.match(output[0], /office/);
         assert.equal(process.exitCode, 0);
         process.stdout.write('LOGOUT_OK');
       });
     `);
     assert.equal(result.status, 0, result.stderr);
     assert.equal(result.stdout, 'LOGOUT_OK');
+  });
+
+  it('automatically logs out the only saved server', () => {
+    const result = runScript(`
+      const assert = require('node:assert/strict');
+      const { Command } = require('commander');
+      const { registerLogoutCommand } = require('./src/commands/auth');
+      let cleared;
+      const output = [];
+      const program = new Command();
+      registerLogoutCommand(program, {
+        settings: {
+          listServers: () => [
+            { name: 'office', endpoint: 'office:5666', username: 'admin' }
+          ],
+          clearCredentials: (name) => { cleared = name; return true; }
+        },
+        stdout: (value) => output.push(value)
+      });
+      program.parseAsync(['node', 'fnos', 'logout']).then(() => {
+        assert.equal(cleared, 'office');
+        assert.match(output[0], /office/);
+        assert.equal(process.exitCode, 0);
+        process.stdout.write('ONLY_SERVER_LOGOUT_OK');
+      });
+    `);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout, 'ONLY_SERVER_LOGOUT_OK');
+  });
+
+  it('succeeds when there are no saved servers', () => {
+    const result = runScript(`
+      const assert = require('node:assert/strict');
+      const { Command } = require('commander');
+      const { registerLogoutCommand } = require('./src/commands/auth');
+      const output = [];
+      const program = new Command();
+      registerLogoutCommand(program, {
+        settings: {
+          listServers: () => [],
+          clearCredentials: () => { throw new Error('must not clear'); }
+        },
+        stdout: (value) => output.push(value)
+      });
+      program.parseAsync(['node', 'fnos', 'logout']).then(() => {
+        assert.match(output[0], /No saved credentials/i);
+        assert.equal(process.exitCode, 0);
+        process.stdout.write('EMPTY_LOGOUT_OK');
+      });
+    `);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout, 'EMPTY_LOGOUT_OK');
+  });
+
+  it('uses the server selector before logging out from multiple servers', () => {
+    const result = runScript(`
+      const assert = require('node:assert/strict');
+      const { Command } = require('commander');
+      const { registerLogoutCommand } = require('./src/commands/auth');
+      const servers = [
+        { name: 'default', endpoint: 'home:5666', username: 'home-user' },
+        { name: 'office', endpoint: 'office:5666', username: 'office-user' }
+      ];
+      let offered;
+      let cleared;
+      const output = [];
+      const program = new Command();
+      registerLogoutCommand(program, {
+        settings: {
+          listServers: () => servers,
+          clearCredentials: (name) => { cleared = name; return true; }
+        },
+        selectServer: async (values) => { offered = values; return 'office'; },
+        stdout: (value) => output.push(value),
+        stderr: () => {}
+      });
+      program.parseAsync(['node', 'fnos', 'logout']).then(() => {
+        assert.deepEqual(offered, servers);
+        assert.equal(cleared, 'office');
+        assert.match(output[0], /office/);
+        assert.equal(process.exitCode, 0);
+        process.stdout.write('SELECTED_LOGOUT_OK');
+      });
+    `);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout, 'SELECTED_LOGOUT_OK');
+  });
+
+  it('reports server selection errors during logout', () => {
+    const result = runScript(`
+      const assert = require('node:assert/strict');
+      const { Command } = require('commander');
+      const { registerLogoutCommand } = require('./src/commands/auth');
+      const errors = [];
+      const program = new Command();
+      registerLogoutCommand(program, {
+        settings: {
+          listServers: () => [
+            { name: 'default', endpoint: 'home:5666', username: 'home-user' },
+            { name: 'office', endpoint: 'office:5666', username: 'office-user' }
+          ],
+          clearCredentials: () => { throw new Error('must not clear'); }
+        },
+        selectServer: async () => {
+          const error = new Error('Selection cancelled.');
+          error.exitCode = 3;
+          throw error;
+        },
+        stdout: () => {},
+        stderr: (value) => errors.push(value)
+      });
+      program.parseAsync(['node', 'fnos', 'logout']).then(() => {
+        assert.match(errors[0], /Selection cancelled/);
+        assert.equal(process.exitCode, 3);
+        process.stdout.write('LOGOUT_SELECTION_ERROR_OK');
+      });
+    `);
+    assert.equal(result.status, 3, result.stderr);
+    assert.equal(result.stdout, 'LOGOUT_SELECTION_ERROR_OK');
+  });
+
+  it('rejects an explicitly named server that is not saved', () => {
+    const result = runScript(`
+      const assert = require('node:assert/strict');
+      const { Command } = require('commander');
+      const { registerLogoutCommand } = require('./src/commands/auth');
+      let cleared = false;
+      const errors = [];
+      const program = new Command();
+      registerLogoutCommand(program, {
+        settings: {
+          listServers: () => [
+            { name: 'default', endpoint: 'home:5666', username: 'home-user' }
+          ],
+          clearCredentials: () => { cleared = true; }
+        },
+        stdout: () => {},
+        stderr: (value) => errors.push(value)
+      });
+      program.parseAsync(['node', 'fnos', 'logout', '-s', 'missing']).then(() => {
+        assert.equal(cleared, false);
+        assert.match(errors[0], /default/);
+        assert.match(errors[0], /missing/);
+        assert.equal(process.exitCode, 3);
+        process.stdout.write('MISSING_LOGOUT_OK');
+      });
+    `);
+    assert.equal(result.status, 3, result.stderr);
+    assert.equal(result.stdout, 'MISSING_LOGOUT_OK');
   });
 });
