@@ -81,10 +81,10 @@ function installZshCompletion(content, dependencies = {}) {
     } finally {
       try {
         fsImpl.closeSync(descriptor);
+        descriptor = undefined;
       } catch (error) {
         if (!writeError) throw error;
       }
-      descriptor = undefined;
     }
     fsImpl.chmodSync(temporary, 0o644);
     fsImpl.renameSync(temporary, target);
@@ -93,6 +93,7 @@ function installZshCompletion(content, dependencies = {}) {
     if (descriptor !== undefined) {
       try {
         fsImpl.closeSync(descriptor);
+        descriptor = undefined;
       } catch {}
     }
     if (temporaryCreated) {

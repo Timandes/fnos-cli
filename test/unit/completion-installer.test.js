@@ -216,6 +216,45 @@ describe('zsh completion installer', () => {
     assert.equal(fs.existsSync(temporary), false);
   });
 
+  it('retries closing an owned descriptor without masking a write failure', () => {
+    const homeDir = home();
+    const target = installZshCompletion(content, {
+      homeDir,
+      randomId: () => 'initial'
+    });
+    const temporary = `${target}.${process.pid}.close-retry.tmp`;
+    const writeFailure = new CompletionInstallError('write failure');
+    const fsImpl = Object.create(fs);
+    let closeAttempts = 0;
+    let closed = false;
+    fsImpl.writeFileSync = (destination, data, options) => {
+      if (typeof destination !== 'number') {
+        const descriptor = fs.openSync(destination, 'wx', options.mode);
+        fs.closeSync(descriptor);
+      }
+      throw writeFailure;
+    };
+    fsImpl.closeSync = (descriptor) => {
+      closeAttempts += 1;
+      if (closeAttempts === 1) throw new Error('first close failed');
+      fs.closeSync(descriptor);
+      closed = true;
+    };
+
+    assert.throws(
+      () => installZshCompletion(content.replace('0.3.0', '0.4.0'), {
+        homeDir,
+        fsImpl,
+        randomId: () => 'close-retry'
+      }),
+      (error) => error === writeFailure
+    );
+    assert.equal(closeAttempts, 2);
+    assert.equal(closed, true);
+    assert.equal(fs.readFileSync(target, 'utf8'), content);
+    assert.equal(fs.existsSync(temporary), false);
+  });
+
   it('preserves an existing temporary file when exclusive creation collides', () => {
     const homeDir = home();
     const target = completionTarget(homeDir);
