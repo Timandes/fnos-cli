@@ -59,6 +59,20 @@ describe('zsh completion installer', () => {
     assert.equal(fs.readFileSync(target, 'utf8'), updated);
   });
 
+  it('returns an absolute target when given a relative home directory', () => {
+    const homeDir = home();
+    const relativeHomeDir = path.relative(process.cwd(), homeDir);
+
+    const target = installZshCompletion(content, {
+      homeDir: relativeHomeDir,
+      randomId: () => 'relative-home'
+    });
+
+    assert.equal(target, completionTarget(homeDir));
+    assert.equal(path.isAbsolute(target), true);
+    assert.equal(fs.readFileSync(target, 'utf8'), content);
+  });
+
   it('refuses to overwrite a foreign regular file', () => {
     const homeDir = home();
     const target = completionTarget(homeDir);
@@ -171,5 +185,22 @@ describe('zsh completion installer', () => {
     );
     assert.equal(fs.existsSync(target), false);
     assert.deepEqual(temporaryFiles(path.dirname(target)), []);
+  });
+
+  it('preserves an existing temporary file when exclusive creation collides', () => {
+    const homeDir = home();
+    const target = completionTarget(homeDir);
+    const temporary = `${target}.${process.pid}.collision.tmp`;
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(temporary, '# foreign temporary file\n');
+
+    assert.throws(
+      () => installZshCompletion(content, {
+        homeDir,
+        randomId: () => 'collision'
+      }),
+      (error) => error instanceof CompletionInstallError
+    );
+    assert.equal(fs.readFileSync(temporary, 'utf8'), '# foreign temporary file\n');
   });
 });

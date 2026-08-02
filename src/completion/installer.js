@@ -36,12 +36,13 @@ function ensureDirectory(directory, fsImpl) {
 
 function installZshCompletion(content, dependencies = {}) {
   const fsImpl = dependencies.fsImpl || fs;
-  const homeDir = dependencies.homeDir || os.homedir();
+  const homeDir = path.resolve(dependencies.homeDir || os.homedir());
   const randomId = dependencies.randomId || randomUUID;
   const settingsDir = path.join(homeDir, '.fnos');
   const completionDir = path.join(settingsDir, 'completions');
   const target = path.join(completionDir, '_fnos');
   let temporary;
+  let temporaryCreated = false;
 
   try {
     if (typeof content !== 'string' || !content.startsWith(GENERATED_PREFIX)) {
@@ -69,11 +70,12 @@ function installZshCompletion(content, dependencies = {}) {
 
     temporary = `${target}.${process.pid}.${randomId()}.tmp`;
     fsImpl.writeFileSync(temporary, content, { mode: 0o644, flag: 'wx' });
+    temporaryCreated = true;
     fsImpl.chmodSync(temporary, 0o644);
     fsImpl.renameSync(temporary, target);
     return target;
   } catch (error) {
-    if (temporary) {
+    if (temporaryCreated) {
       try {
         fsImpl.rmSync(temporary, { force: true });
       } catch {}
