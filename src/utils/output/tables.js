@@ -78,13 +78,13 @@ function indentLines(value, indent) {
   return value.split('\n').map(line => `${prefix}${line.trimEnd()}`).join('\n');
 }
 
-function fallbackIndent(indent, columns) {
+function fallbackIndent(indent, columns, contentMinimum = 1) {
   if (!Number.isInteger(columns) || columns <= 0) return indent;
-  return Math.min(indent, Math.max(0, columns - 1));
+  return Math.min(indent, Math.max(0, columns - contentMinimum));
 }
 
 function wrapIndentedText(value, indent = 0, columns) {
-  const safeIndent = fallbackIndent(indent, columns);
+  const safeIndent = fallbackIndent(indent, columns, minimumWidth(value));
   const width = Number.isInteger(columns) && columns > 0
     ? Math.max(1, columns - safeIndent)
     : undefined;
@@ -96,7 +96,11 @@ function wrapIndentedText(value, indent = 0, columns) {
 
 function renderStackedEntries(groups, options, theme) {
   const { columns, indent = 0 } = options;
-  const { indent: safeIndent } = wrapIndentedText('', indent, columns);
+  const contentMinimum = Math.max(1, ...groups.flatMap(entries => entries.flatMap(entry => [
+    minimumWidth(entry.key),
+    minimumWidth(entry.value)
+  ])));
+  const safeIndent = fallbackIndent(indent, columns, contentMinimum);
   const width = columns - safeIndent;
   const lines = [];
   for (const [groupIndex, entries] of groups.entries()) {

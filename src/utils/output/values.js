@@ -10,7 +10,14 @@ function normalizedName(value) {
 }
 
 function sanitizeText(value) {
-  return stripVTControlCharacters(String(value));
+  return stripVTControlCharacters(String(value)
+    .replace(/\u0090/g, '\u001bP')
+    .replace(/\u009b/g, '\u001b[')
+    .replace(/\u009d/g, '\u001b]')
+    .replace(/\u009c/g, '\u001b\\'))
+    .replace(/\r\n?/g, '\n')
+    .replace(/\t/g, ' ')
+    .replace(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/g, '');
 }
 
 function humanizeKey(key) {
@@ -67,7 +74,7 @@ function formatScalar(key, value, path = []) {
 function compactValue(value) {
   try {
     const serialized = JSON.stringify(value);
-    return serialized === undefined ? '—' : serialized;
+    return serialized === undefined ? '—' : sanitizeText(serialized);
   } catch (error) {
     return '[Circular]';
   }

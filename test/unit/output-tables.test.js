@@ -174,4 +174,28 @@ describe('output tables', () => {
     assert.doesNotMatch(output, /\u001b|\[31m|\[0m|\[35m/);
     assert.ok(output.replace(/\s/g, '').includes('KAB中文CD'), output);
   });
+
+  it('removes C1 OSC and DCS sequences from direct field-value entries', () => {
+    const output = tables.renderKeyValueTable([
+      { key: 'Field', value: 'safe\u009d0;owned\u0007middle\u0090payload\u009cend' }
+    ], { columns: 12, color: false });
+    for (const line of output.split('\n')) {
+      assert.ok(visibleWidth(line) <= 12, `${visibleWidth(line)}: ${line}`);
+    }
+    assert.doesNotMatch(output, /[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/);
+    assert.doesNotMatch(output, /owned|payload/);
+    assert.ok(output.replace(/\s/g, '').includes('Fieldsafemiddleend'), output);
+  });
+
+  it('removes C1 OSC and DCS sequences from record-table entries', () => {
+    const output = tables.renderRecordTable([
+      { field: 'safe\u009d0;owned\u0007middle\u0090payload\u009cend' }
+    ], { columns: 12, color: false });
+    for (const line of output.split('\n')) {
+      assert.ok(visibleWidth(line) <= 12, `${visibleWidth(line)}: ${line}`);
+    }
+    assert.doesNotMatch(output, /[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/);
+    assert.doesNotMatch(output, /owned|payload/);
+    assert.ok(output.replace(/[\s─]/g, '').includes('Fieldsafemiddleend'), output);
+  });
 });

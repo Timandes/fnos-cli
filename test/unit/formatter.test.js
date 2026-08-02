@@ -88,6 +88,31 @@ describe('human-readable response formatting', () => {
     assert.ok(compact.includes('Verylongrecordarrayfield(1)'), output);
   });
 
+  it('wraps a seven-level double-width object title without loss', () => {
+    let nested = { value: 'object' };
+    for (let level = 0; level < 7; level += 1) nested = { 中文标题: nested };
+    const output = formatOutput({ data: { root: nested } }, false, { color: false, columns: 12 });
+    for (const line of output.split('\n')) {
+      assert.ok(stringWidth(stripVTControlCharacters(line)) <= 12, line);
+    }
+    const compact = output.replace(/[\s─]/g, '');
+    assert.ok(compact.includes('中文标题'.repeat(7)), output);
+    assert.doesNotMatch(output, /…/);
+  });
+
+  it('wraps a seven-level double-width record-array title without loss', () => {
+    let nested = { 中文数组: [{ 中文值: '中文' }] };
+    for (let level = 0; level < 6; level += 1) nested = { [`level${level + 1}`]: nested };
+    const output = formatOutput({ data: { root: nested } }, false, { color: false, columns: 12 });
+    for (const line of output.split('\n')) {
+      assert.ok(stringWidth(stripVTControlCharacters(line)) <= 12, line);
+    }
+    const compact = output.replace(/[\s─]/g, '');
+    assert.ok(compact.includes('中文数组(1)'), output);
+    assert.ok(compact.includes('中文值中文'), output);
+    assert.doesNotMatch(output, /…/);
+  });
+
   it('removes terminal control sequences from human output before narrow wrapping', () => {
     const response = {
       data: { 'K\u001b[35m': 'AB\u001b[31m中文CD\u001b[0m' },
@@ -104,6 +129,21 @@ describe('human-readable response formatting', () => {
       formatOutput(response, true, { color: false, columns: 6 }),
       JSON.stringify(response, null, 2)
     );
+  });
+
+  it('removes C1 OSC and DCS sequences from formatter output without changing raw JSON', () => {
+    const input = {
+      data: { field: 'safe\u009d0;owned\u0007middle\u0090payload\u009cend' },
+      req: 'safe\u009d0;owned\u0007middle\u0090payload\u009cend'
+    };
+    const output = formatOutput(input, false, { color: false, columns: 12 });
+    for (const line of output.split('\n')) {
+      assert.ok(stringWidth(stripVTControlCharacters(line)) <= 12, line);
+    }
+    assert.doesNotMatch(output, /[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/);
+    assert.doesNotMatch(output, /owned|payload/);
+    assert.ok(output.replace(/[\s─]/g, '').includes('Fieldsafemiddleend'), output);
+    assert.equal(formatOutput(input, true, { color: false, columns: 12 }), JSON.stringify(input, null, 2));
   });
 
   it('adds ANSI only when the formatter color option is true', () => {
