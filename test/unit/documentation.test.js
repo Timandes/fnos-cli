@@ -44,8 +44,13 @@ describe('release documentation', () => {
     assert.match(readme, /npm run test:smoke/);
     assert.match(readme, /fnos.*0\.4\.0/i);
     assert.match(readme, /Node\.js 18 或更高版本/);
+    assert.match(readme, /fnos completion install zsh/);
+    assert.match(readme, /eval "\$\(fnos completion zsh\)"/);
+    assert.match(readme, /~\/\.fnos\/completions/);
+    assert.match(readme, /npm update -g fnos-cli/);
     assert.doesNotMatch(readme, /凭证加密保存/);
     assert.match(changelog, /## \[0\.3\.0\] - 2026-07-20/);
+    assert.match(changelog, /zsh.*Tab.*补全/i);
     assert.doesNotMatch(changelog, /凭证加密保存/);
     assert.match(constitution, /fnos@0\.4\.0/);
   });

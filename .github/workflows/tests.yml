@@ -18,6 +18,8 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
+      - name: Install zsh for completion tests
+        run: sudo apt-get update && sudo apt-get install --yes zsh
       - uses: astral-sh/setup-uv@v2
         with:
           version: latest

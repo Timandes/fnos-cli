@@ -13,6 +13,7 @@
 - 支持原始 JSON 和格式化输出
 - 密码、验证码、token、secret 和签名材料统一日志脱敏
 - 凭证保存在权限为 0600 的本地设置文件中
+- 提供 `fnos completion zsh` 生成的 zsh Tab 补全
 
 ## 安装
 
@@ -30,6 +31,41 @@ cd fnos-cli
 npm install
 npm link
 ```
+
+### zsh Tab 补全
+
+首次安装后，执行以下命令把补全脚本安装到
+`~/.fnos/completions/_fnos`：
+
+```bash
+fnos completion install zsh
+```
+
+安装命令不会自动修改 `.zshrc`。要持久启用补全，请将以下内容加入 `.zshrc`，并确保
+`fpath` 的设置位于现有 shell 框架调用 `compinit` 之前：
+
+```zsh
+fpath=(~/.fnos/completions $fpath)
+autoload -Uz compinit
+compinit
+```
+
+如果使用的框架已经初始化了补全，不要再次调用 `compinit`；只需在该框架调用它之前设置
+`fpath`。临时在当前 shell 会话启用补全时，可运行：
+
+```zsh
+eval "$(fnos completion zsh)"
+```
+
+升级 CLI 后需要重新安装补全脚本：
+
+```bash
+npm update -g fnos-cli
+fnos completion install zsh
+```
+
+命令、选项、布尔值和有限枚举值由 CLI 静态生成；`--server` 的候选名称会从
+`~/.fnos/settings.json` 刷新，不会发起网络请求。
 
 ## 登录与认证
 
@@ -144,6 +180,7 @@ npm run docs:commands
 fnos-cli/
 ├── bin/fnos
 ├── src/
+│   ├── completion/
 │   ├── commands/
 │   │   ├── catalog/
 │   │   ├── auth.js

@@ -10,6 +10,7 @@ describe('CI workflow', () => {
     assert.match(workflow, /"release\/\*\*"/);
     assert.match(workflow, /node-version: \["18", "20"\]/);
     assert.match(workflow, /node-version: \$\{\{ matrix\.node-version \}\}/);
+    assert.match(workflow, /apt-get install --yes zsh/);
     assert.match(workflow, /d9592a05a8e07082b954921acfae3a9a915f3c01/);
     assert.match(workflow, /python-version: "3\.11"/);
     assert.match(workflow, /FNOS_MOCK_TWOFA_USERS: twofauser/);
