@@ -1,7 +1,14 @@
 #!/usr/bin/env node
 
-require('../src').main().catch((error) => {
-  const { errorMessage } = require('../src/utils/errors');
-  console.error(`Error: ${errorMessage(error)}`);
-  process.exitCode = error.exitCode || 1;
-});
+const args = process.argv.slice(2);
+
+if (args[0] === '__complete') {
+  const { runCompletion } = require('../src/completion/runtime');
+  process.exitCode = runCompletion(args.slice(1));
+} else {
+  require('../src').main().catch((error) => {
+    const { errorMessage } = require('../src/utils/errors');
+    console.error(`Error: ${errorMessage(error)}`);
+    process.exitCode = error.exitCode || 1;
+  });
+}

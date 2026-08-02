@@ -128,6 +128,44 @@ describe('credential settings', () => {
     });
   });
 
+  it('lists server names without migrating or modifying settings', () => {
+    const store = settingsStore();
+    store.save({
+      endpoint: 'legacy:5666',
+      username: 'legacy-user',
+      password: 'legacy-pw',
+      servers: {
+        zeta: { endpoint: 'zeta:5666', username: 'z-user', password: 'z-pw' },
+        alpha: { endpoint: 'alpha:5666', username: 'a-user', password: 'a-pw' }
+      }
+    });
+    const before = fs.readFileSync(store.settingsPath);
+    const beforeStat = fs.statSync(store.settingsPath);
+
+    assert.deepEqual(store.listServerNamesReadOnly(), ['default', 'alpha', 'zeta']);
+    assert.deepEqual(fs.readFileSync(store.settingsPath), before);
+    const afterStat = fs.statSync(store.settingsPath);
+    assert.equal(afterStat.ino, beforeStat.ino);
+    assert.equal(afterStat.mtimeMs, beforeStat.mtimeMs);
+  });
+
+  it('returns no read-only names when settings do not exist', () => {
+    const store = settingsStore();
+
+    assert.deepEqual(store.listServerNamesReadOnly(), []);
+    assert.equal(fs.existsSync(store.settingsPath), false);
+  });
+
+  it('rejects malformed records in the read-only server view', () => {
+    const store = settingsStore();
+    store.save({ servers: { office: { endpoint: 'office:5666' } } });
+
+    assert.throws(
+      () => store.listServerNamesReadOnly(),
+      (error) => error.name === 'ConfigurationError' && error.exitCode === 1
+    );
+  });
+
   it('stores versioned credentials with mode 0600 and preserves unrelated data on logout', () => {
     const store = settingsStore();
     store.save({ theme: 'dark' });

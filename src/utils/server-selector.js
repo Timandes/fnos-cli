@@ -1,4 +1,5 @@
 const readline = require('node:readline/promises');
+const { sortServerNames } = require('./settings');
 
 class ServerSelectionError extends Error {
   constructor(message) {
@@ -18,13 +19,8 @@ async function terminalPrompt(message, { input, output }) {
 }
 
 function sortServers(servers) {
-  return [...servers].sort((left, right) => {
-    if (left.name === 'default') return right.name === 'default' ? 0 : -1;
-    if (right.name === 'default') return 1;
-    if (left.name < right.name) return -1;
-    if (left.name > right.name) return 1;
-    return 0;
-  });
+  const byName = new Map(servers.map((server) => [server.name, server]));
+  return sortServerNames([...byName.keys()]).map((name) => byName.get(name));
 }
 
 function escapeTerminalValue(value) {

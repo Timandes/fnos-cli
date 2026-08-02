@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const { PassThrough } = require('node:stream');
 const { describe, it } = require('mocha');
+const { sortServerNames } = require('../../src/utils/settings');
 
 function loadSelector() {
   try {
@@ -30,6 +31,9 @@ function output(isTTY = true) {
 describe('server selector', () => {
   it('sorts default first and remaining server names lexically', () => {
     assert.equal(typeof selector.sortServers, 'function', 'sortServers must be implemented');
+    const names = servers.map(({ name }) => name);
+    assert.deepEqual(sortServerNames(names), ['default', 'alpha', 'zeta']);
+    assert.deepEqual(names, ['zeta', 'default', 'alpha']);
     assert.deepEqual(
       selector.sortServers(servers).map(({ name }) => name),
       ['default', 'alpha', 'zeta']

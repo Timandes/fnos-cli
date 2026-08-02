@@ -38,6 +38,16 @@ function isValidServerName(name) {
   return typeof name === 'string' && SERVER_NAME_PATTERN.test(name);
 }
 
+function sortServerNames(names) {
+  return [...names].sort((left, right) => {
+    if (left === 'default') return right === 'default' ? 0 : -1;
+    if (right === 'default') return 1;
+    if (left < right) return -1;
+    if (left > right) return 1;
+    return 0;
+  });
+}
+
 function sameKnownCredentials(left, right) {
   return AUTH_FIELDS.every((field) => left[field] === right[field]);
 }
@@ -153,6 +163,38 @@ class Settings {
     }));
   }
 
+  listServerNamesReadOnly() {
+    const data = this.load();
+    if (data === null) return [];
+    if (!isPlainObject(data)) {
+      throw new ConfigurationError('Invalid settings structure.');
+    }
+    const servers = data.servers === undefined ? {} : data.servers;
+    if (!isPlainObject(servers)) {
+      throw new ConfigurationError('Invalid servers configuration.');
+    }
+    for (const [name, credentials] of Object.entries(servers)) {
+      if (!isValidServerName(name)) {
+        throw new ConfigurationError(`Invalid server name in settings: "${name}".`);
+      }
+      validateCredentialRecord(credentials, name);
+    }
+    const names = Object.keys(servers);
+    const hasLegacy = AUTH_FIELDS.some((field) =>
+      Object.prototype.hasOwnProperty.call(data, field));
+    if (hasLegacy) {
+      const legacy = pickCredentials(data);
+      validateCredentialRecord(legacy, 'default');
+      if (servers.default && !sameKnownCredentials(legacy, servers.default)) {
+        throw new ConfigurationError(
+          'Conflicting legacy credentials and servers.default were found.'
+        );
+      }
+      names.push('default');
+    }
+    return sortServerNames([...new Set(names)]);
+  }
+
   getCredentials(serverName = 'default') {
     const data = this._loadCredentialSettings();
     const credentials = data.servers[serverName];
@@ -187,3 +229,4 @@ module.exports.AUTH_FIELDS = AUTH_FIELDS;
 module.exports.ConfigurationError = ConfigurationError;
 module.exports.SERVER_NAME_PATTERN = SERVER_NAME_PATTERN;
 module.exports.isValidServerName = isValidServerName;
+module.exports.sortServerNames = sortServerNames;
