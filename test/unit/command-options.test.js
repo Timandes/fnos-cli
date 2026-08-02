@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const { Command } = require('commander');
 const { describe, it } = require('mocha');
 const { COMMAND_CATALOG } = require('../../src/commands/catalog');
+const { getCompletion } = require('../../src/completion/metadata');
 
 function loadOptions() {
   try {
@@ -82,6 +83,34 @@ describe('command option compiler', () => {
 
     assert.equal(command.opts().server, 'office-nas');
     assert.deepEqual(command.options.map(({ long }) => long), ['--server']);
+  });
+
+  it('annotates boolean, enum, and server options for completion', () => {
+    const command = new Command('sample');
+    registerBusinessOptions(command, [
+      { name: 'all', flag: '--all <boolean>', type: 'boolean', description: 'All rows' },
+      {
+        name: 'direction',
+        flag: '--direction <integer>',
+        type: 'integer',
+        allowedValues: [0, 1],
+        description: 'Direction'
+      },
+      { name: 'name', flag: '--name <name>', type: 'string', description: 'Name' }
+    ]);
+    registerServerOption(command);
+
+    const byLong = Object.fromEntries(command.options.map((option) => [option.long, option]));
+    assert.deepEqual(getCompletion(byLong['--all']), {
+      kind: 'values',
+      values: ['true', 'false']
+    });
+    assert.deepEqual(getCompletion(byLong['--direction']), {
+      kind: 'values',
+      values: ['0', '1']
+    });
+    assert.equal(getCompletion(byLong['--name']), null);
+    assert.deepEqual(getCompletion(byLong['--server']), { kind: 'server' });
   });
 
   it('includes the shared server option with authentication options', () => {

@@ -1,5 +1,10 @@
 const { Option } = require('commander');
 const { isValidServerName } = require('../utils/settings');
+const {
+  SERVER_COMPLETION,
+  fixedValues,
+  withCompletion
+} = require('../completion/metadata');
 
 class CommandParameterError extends Error {
   constructor(message) {
@@ -100,9 +105,19 @@ function buildMethodArguments(definition, options, timeout = 10000) {
   return definition.timeoutPosition === 'first' ? [timeout, ...values] : [...values, timeout];
 }
 
+function completionForDefinition(definition) {
+  if (definition.type === 'boolean') return fixedValues(['true', 'false']);
+  if (Array.isArray(definition.allowedValues)) {
+    return fixedValues(definition.allowedValues);
+  }
+  return null;
+}
+
 function registerBusinessOptions(command, definitions) {
   for (const definition of definitions) {
-    command.addOption(new Option(definition.flag, definition.description));
+    const option = new Option(definition.flag, definition.description);
+    const completion = completionForDefinition(definition);
+    command.addOption(completion ? withCompletion(option, completion) : option);
     for (const legacyFlag of definition.legacyFlags || []) {
       command.addOption(new Option(legacyFlag, `${definition.description} (legacy spelling)`).hideHelp());
     }
@@ -120,11 +135,9 @@ function parseServerName(value) {
 }
 
 function registerServerOption(command) {
-  command.option(
-    '-s, --server <name>',
-    'Saved server name',
-    parseServerName
-  );
+  const option = new Option('-s, --server <name>', 'Saved server name')
+    .argParser(parseServerName);
+  command.addOption(withCompletion(option, SERVER_COMPLETION));
   return command;
 }
 
