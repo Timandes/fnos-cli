@@ -45,6 +45,58 @@ function sampleSpec() {
   };
 }
 
+function nestedStaticSpec() {
+  const globalOptions = [{
+    flags: '--raw', short: null, long: '--raw', description: 'Raw output',
+    requiredValue: false, optionalValue: false, variadic: false,
+    mandatory: false, completion: null
+  }];
+  const boolean = {
+    flags: '--all <boolean>', short: null, long: '--all', description: 'All rows',
+    requiredValue: true, optionalValue: false, variadic: false,
+    mandatory: false, completion: { kind: 'values', values: ['true', 'false'] }
+  };
+  const format = {
+    flags: '--format <format>', short: null, long: '--format', description: 'Output format',
+    requiredValue: true, optionalValue: false, variadic: false,
+    mandatory: false, completion: { kind: 'values', values: ['json', 'table'] }
+  };
+  return {
+    name: 'fnos', description: 'CLI', path: [], options: globalOptions, arguments: [],
+    commands: [{
+      name: 'admin', description: 'Administration', path: ['admin'],
+      options: globalOptions, arguments: [], commands: [
+        {
+          name: 'inspect', description: 'Inspect state', path: ['admin', 'inspect'],
+          options: [...globalOptions, boolean, format], arguments: [], commands: []
+        },
+        {
+          name: 'status', description: 'Show status', path: ['admin', 'status'],
+          options: globalOptions, arguments: [], commands: []
+        }
+      ]
+    }]
+  };
+}
+
+function runInteractiveCompletion(directory, { input, expected }, environment = {}) {
+  const code = [
+    'zmodload zsh/zpty',
+    'zpty -b child zsh -df',
+    "zpty -w child $'PS1=\"PROMPT> \"; setopt AUTO_LIST NO_BEEP; fpath=(\"$FNOS_COMPLETION_DIR\" $fpath); autoload -Uz compinit; compinit -D; bindkey \"^I\" complete-word; bindkey \"^G\" list-choices; print -- READY'",
+    "zpty -r child output '*READY*PROMPT>*' || exit 1",
+    'print -r -- "$output"',
+    `zpty -w -n child $'${input}\\t\\007'`,
+    `zpty -r child output '*${expected}*' || exit 1`,
+    'print -r -- "$output"',
+    'zpty -d child'
+  ].join('\n');
+  return spawnSync('zsh', ['-dfc', code, 'zsh', directory], {
+    env: { ...process.env, FNOS_COMPLETION_DIR: directory, ...environment },
+    encoding: 'utf8', timeout: 3000
+  });
+}
+
 describe('zsh completion renderer', () => {
   it('quotes shell tokens and arguments syntax independently', () => {
     assert.equal(quoteZsh("can't\nexpand $HOME"), "'can'\\''t\\nexpand $HOME'");
@@ -119,6 +171,45 @@ describe('zsh completion renderer', () => {
     ], { encoding: 'utf8' });
     assert.equal(autoloadResult.status, 0, autoloadResult.stderr);
     assert.match(autoloadResult.stdout, /_fnos: function/);
+  });
+
+  it('autoloads nested static completions without invoking the internal CLI', function () {
+    this.timeout(5000);
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'fnos-zsh-static-'));
+    temporaryDirectories.push(directory);
+    const counterPath = path.join(directory, 'count');
+    const binDir = path.join(directory, 'bin');
+    fs.mkdirSync(binDir);
+    fs.writeFileSync(path.join(directory, '_fnos'), renderZsh(nestedStaticSpec(), {
+      format: 'autoload', version: '0.3.0'
+    }));
+    fs.writeFileSync(path.join(binDir, 'fnos'), [
+      '#!/bin/sh',
+      'printf "unexpected internal completion\\n" >> "$FNOS_COUNTER"',
+      'exit 97'
+    ].join('\n'));
+    fs.chmodSync(path.join(binDir, 'fnos'), 0o755);
+
+    const environment = {
+      PATH: `${binDir}:${process.env.PATH}`,
+      FNOS_COUNTER: counterPath
+    };
+    const results = [
+      { input: 'fnos admin i', expected: 'inspect' },
+      { input: 'fnos admin s', expected: 'status' },
+      { input: 'fnos admin inspect --all t', expected: 'true' },
+      { input: 'fnos admin inspect --format j', expected: 'json' }
+    ].map((request) => runInteractiveCompletion(directory, request, environment));
+    if (results.some((result) => result.error?.code === 'ENOENT')) this.skip();
+    for (const [index, result] of results.entries()) {
+      assert.equal(result.status, 0, `${index}: ${result.stderr}\n${result.stdout}`);
+    }
+    const output = results.map((result) => result.stdout).join('\n');
+    assert.match(output, /inspect/);
+    assert.match(output, /status/);
+    assert.match(output, /true/);
+    assert.match(output, /json/);
+    assert.equal(fs.existsSync(counterPath), false);
   });
 
   it('caches server names until settings is atomically replaced', function () {

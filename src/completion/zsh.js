@@ -124,17 +124,11 @@ function renderCandidateCase(stateName, label, candidates) {
 function renderNodeFunction(node) {
   const specs = [];
   const cases = [];
-  const depth = node.path.length;
   for (const option of node.options) specs.push(...renderOptionSpecs(option));
-  node.path.forEach((name, index) => {
-    specs.push(
-      String(index + 1) + ':command:(' + escapeZshSpecText(name) + ')'
-    );
-  });
 
   const children = childCandidates(node);
   node.arguments.forEach((argument, index) => {
-    const position = depth + index + 1;
+    const position = index + 1;
     const values = fixedArgumentCandidates(argument);
     const candidates = index === 0
       ? mergeCandidates(children, values)
@@ -155,7 +149,7 @@ function renderNodeFunction(node) {
   });
 
   if (node.arguments.length === 0 && children.length > 0) {
-    const position = depth + 1;
+    const position = 1;
     const stateName = 'fnos_values_' + String(position);
     specs.push(String(position) + ':command:->' + stateName);
     cases.push(renderCandidateCase(stateName, 'command', children));
@@ -165,7 +159,7 @@ function renderNodeFunction(node) {
     cases.push('    fnos_servers)\n      _fnos_complete_servers\n      ;;');
   }
   if (children.length > 0) {
-    const childPosition = depth + 1;
+    const childPosition = 1;
     specs.push('*::argument:->fnos_dispatch');
     const branches = children.map((child) =>
       '        ' + quoteZsh(child.value) + ') ' +
