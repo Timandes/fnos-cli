@@ -53,12 +53,65 @@ describe('command runner', () => {
       getSDKInstance: () => ({ list: async (...args) => { calls.push(args); return { result: 'succ' }; } }),
       resolveCredentials: () => ({ endpoint: 'host:5666', username: 'admin', password: 'pw', source: 'command_line' }),
       stdout: (value) => output.push(value),
-      stderr: () => {}
+      stderr: () => {},
+      stdoutIsTTY: true,
+      stdoutColumns: 40,
+      env: { TERM: 'xterm-256color' }
     });
     assert.equal(code, 0);
     assert.deepEqual(calls, [[0, 10000]]);
     assert.deepEqual(JSON.parse(output[0]), { result: 'succ' });
+    assert.doesNotMatch(output[0], /\u001b\[/);
     assert.equal(closed, 1);
+  });
+
+  it('enables styled human output only for an eligible TTY', async () => {
+    requireRunner();
+    const output = [];
+    const client = { close: () => {} };
+    const code = await runner.runCommand({
+      domain: COMMAND_CATALOG.network,
+      definition: COMMAND_CATALOG.network.commands.list,
+      options: {}, globalOptions: { raw: false }
+    }, {
+      resolveCredentials: () => ({ endpoint: 'host:5666', username: 'admin', password: 'pw' }),
+      createClient: async () => client,
+      getSDKInstance: () => ({ list: async () => ({ data: { hostName: 'nas' }, result: 'succ' }) }),
+      stdout: value => output.push(value),
+      stderr: () => {},
+      stdoutIsTTY: true,
+      stdoutColumns: 80,
+      env: { TERM: 'xterm-256color' }
+    });
+    assert.equal(code, 0);
+    assert.match(output[0], /\u001b\[/);
+  });
+
+  it('keeps redirected, NO_COLOR, and dumb-terminal output free of ANSI', async () => {
+    requireRunner();
+    const cases = [
+      { stdoutIsTTY: false, env: { TERM: 'xterm-256color' } },
+      { stdoutIsTTY: true, env: { TERM: 'xterm-256color', NO_COLOR: '' } },
+      { stdoutIsTTY: true, env: { TERM: 'dumb' } }
+    ];
+    for (const terminal of cases) {
+      const output = [];
+      const client = { close: () => {} };
+      const code = await runner.runCommand({
+        domain: COMMAND_CATALOG.network,
+        definition: COMMAND_CATALOG.network.commands.list,
+        options: {}, globalOptions: { raw: false }
+      }, {
+        resolveCredentials: () => ({ endpoint: 'host:5666', username: 'admin', password: 'pw' }),
+        createClient: async () => client,
+        getSDKInstance: () => ({ list: async () => ({ data: { hostName: 'nas' }, result: 'succ' }) }),
+        stdout: value => output.push(value),
+        stderr: () => {},
+        ...terminal
+      });
+      assert.equal(code, 0);
+      assert.doesNotMatch(output[0], /\u001b\[/);
+    }
   });
 
   it('awaits asynchronous credential resolution before creating a client', async () => {
