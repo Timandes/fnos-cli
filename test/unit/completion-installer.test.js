@@ -187,6 +187,35 @@ describe('zsh completion installer', () => {
     assert.deepEqual(temporaryFiles(path.dirname(target)), []);
   });
 
+  it('removes an owned temporary file when writing fails after exclusive creation', () => {
+    const homeDir = home();
+    const target = installZshCompletion(content, {
+      homeDir,
+      randomId: () => 'initial'
+    });
+    const temporary = `${target}.${process.pid}.after-open.tmp`;
+    const fsImpl = Object.create(fs);
+    fsImpl.writeFileSync = (destination, data, options) => {
+      if (typeof destination === 'number') {
+        throw new Error(`write failed: ${destination}`);
+      }
+      const descriptor = fs.openSync(destination, 'wx', options.mode);
+      fs.closeSync(descriptor);
+      throw new Error(`write failed: ${destination}`);
+    };
+
+    assert.throws(
+      () => installZshCompletion(content.replace('0.3.0', '0.4.0'), {
+        homeDir,
+        fsImpl,
+        randomId: () => 'after-open'
+      }),
+      (error) => error instanceof CompletionInstallError
+    );
+    assert.equal(fs.readFileSync(target, 'utf8'), content);
+    assert.equal(fs.existsSync(temporary), false);
+  });
+
   it('preserves an existing temporary file when exclusive creation collides', () => {
     const homeDir = home();
     const target = completionTarget(homeDir);

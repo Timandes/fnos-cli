@@ -43,6 +43,7 @@ function installZshCompletion(content, dependencies = {}) {
   const target = path.join(completionDir, '_fnos');
   let temporary;
   let temporaryCreated = false;
+  let descriptor;
 
   try {
     if (typeof content !== 'string' || !content.startsWith(GENERATED_PREFIX)) {
@@ -69,12 +70,31 @@ function installZshCompletion(content, dependencies = {}) {
     }
 
     temporary = `${target}.${process.pid}.${randomId()}.tmp`;
-    fsImpl.writeFileSync(temporary, content, { mode: 0o644, flag: 'wx' });
+    descriptor = fsImpl.openSync(temporary, 'wx', 0o644);
     temporaryCreated = true;
+    let writeError;
+    try {
+      fsImpl.writeFileSync(descriptor, content, 'utf8');
+    } catch (error) {
+      writeError = error;
+      throw error;
+    } finally {
+      try {
+        fsImpl.closeSync(descriptor);
+      } catch (error) {
+        if (!writeError) throw error;
+      }
+      descriptor = undefined;
+    }
     fsImpl.chmodSync(temporary, 0o644);
     fsImpl.renameSync(temporary, target);
     return target;
   } catch (error) {
+    if (descriptor !== undefined) {
+      try {
+        fsImpl.closeSync(descriptor);
+      } catch {}
+    }
     if (temporaryCreated) {
       try {
         fsImpl.rmSync(temporary, { force: true });
