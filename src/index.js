@@ -2,6 +2,7 @@
 
 const { Command } = require('commander');
 const { registerLoginCommand, registerLogoutCommand } = require('./commands/auth');
+const { registerCompletionCommand } = require('./commands/completion');
 const { registerCommands } = require('./commands');
 const { setLogLevel } = require('./utils/logger');
 const { errorMessage } = require('./utils/errors');
@@ -17,6 +18,7 @@ function createProgram(dependencies = {}) {
     .option('-vvv, --silly', 'Silly output (silly level)');
   registerLoginCommand(program, dependencies);
   registerLogoutCommand(program, dependencies);
+  registerCompletionCommand(program, dependencies);
   registerCommands(program, dependencies);
   program.hook('preAction', (thisCommand) => {
     const options = thisCommand.opts();

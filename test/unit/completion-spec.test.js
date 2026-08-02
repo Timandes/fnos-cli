@@ -51,4 +51,14 @@ describe('completion specification', () => {
     assert.deepEqual(installSpec.arguments[0].completion.values, ['zsh']);
     assert.ok(installSpec.options.some((option) => option.long === '--global'));
   });
+
+  it('models the public completion grammar but not the internal runtime', () => {
+    const spec = buildCompletionSpec(createProgram());
+    const completion = findCommand(spec, 'completion');
+
+    assert.ok(completion);
+    assert.deepEqual(completion.arguments[0].completion.values, ['zsh']);
+    assert.equal(findCommand(completion, 'install').arguments[0].completion.values[0], 'zsh');
+    assert.equal(findCommand(spec, '__complete'), undefined);
+  });
 });

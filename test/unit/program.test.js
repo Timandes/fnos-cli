@@ -11,16 +11,18 @@ describe('CLI program', () => {
     assert.notEqual(mode & 0o111, 0, 'bin/fnos must have an executable bit');
   });
 
-  it('is import-safe and registers 111 business commands plus login and logout', () => {
+  it('is import-safe and registers 111 business commands plus public utility commands', () => {
     const script = `
       const assert = require('node:assert/strict');
       const entry = require('./src');
       assert.equal(typeof entry.createProgram, 'function');
       assert.equal(typeof entry.main, 'function');
       const program = entry.createProgram();
-      assert.equal(program.commands.length, 113);
+      assert.equal(program.commands.length, 114);
       assert.ok(program.commands.some((command) => command.name() === 'docker.listContainers'));
       assert.ok(program.commands.some((command) => command.name() === 'backup.listTasks'));
+      assert.ok(program.commands.some((command) => command.name() === 'completion'));
+      assert.equal(program.commands.some((command) => command.name() === '__complete'), false);
       process.stdout.write('PROGRAM_OK');
     `;
     const result = spawnSync(process.execPath, ['-e', script], {
