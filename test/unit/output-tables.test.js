@@ -198,4 +198,16 @@ describe('output tables', () => {
     assert.doesNotMatch(output, /owned|payload/);
     assert.ok(output.replace(/[\s─]/g, '').includes('Fieldsafemiddleend'), output);
   });
+
+  it('removes C1 OSC and DCS sequences from compact nested record-table values', () => {
+    const output = tables.renderRecordTable([
+      { field: { nested: 'safe\u009d0;owned\u0007middle\u0090payload\u009cend' } }
+    ], { columns: 12, color: false });
+    for (const line of output.split('\n')) {
+      assert.ok(visibleWidth(line) <= 12, `${visibleWidth(line)}: ${line}`);
+    }
+    assert.doesNotMatch(output, /[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/);
+    assert.doesNotMatch(output, /owned|payload/);
+    assert.ok(output.replace(/[\s─]/g, '').includes('{"nested":"safemiddleend"}'), output);
+  });
 });

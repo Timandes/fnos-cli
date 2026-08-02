@@ -146,6 +146,20 @@ describe('human-readable response formatting', () => {
     assert.equal(formatOutput(input, true, { color: false, columns: 12 }), JSON.stringify(input, null, 2));
   });
 
+  it('removes C1 OSC and DCS sequences from compact non-record arrays without changing raw JSON', () => {
+    const input = {
+      data: { v: ['safe\u009d0;owned\u0007middle\u0090payload\u009cend'] }
+    };
+    const output = formatOutput(input, false, { color: false, columns: 12 });
+    for (const line of output.split('\n')) {
+      assert.ok(stringWidth(stripVTControlCharacters(line)) <= 12, line);
+    }
+    assert.doesNotMatch(output, /[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/);
+    assert.doesNotMatch(output, /owned|payload/);
+    assert.ok(output.replace(/[\s─]/g, '').includes('V["safemiddleend"]'), output);
+    assert.equal(formatOutput(input, true, { color: false, columns: 12 }), JSON.stringify(input, null, 2));
+  });
+
   it('adds ANSI only when the formatter color option is true', () => {
     const response = { data: { hostName: 'nas' }, result: 'succ' };
     assert.doesNotMatch(formatOutput(response, false, { color: false }), ANSI);

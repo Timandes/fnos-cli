@@ -73,7 +73,8 @@ function formatScalar(key, value, path = []) {
 
 function compactValue(value) {
   try {
-    const serialized = JSON.stringify(value);
+    const serialized = JSON.stringify(value, (key, nestedValue) =>
+      typeof nestedValue === 'string' ? sanitizeText(nestedValue) : nestedValue);
     return serialized === undefined ? '—' : sanitizeText(serialized);
   } catch (error) {
     return '[Circular]';
