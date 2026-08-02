@@ -108,4 +108,27 @@ describe('output tables', () => {
     assert.ok(compactOutput(output).includes(emoji), output);
     assert.doesNotMatch(output, /…/);
   });
+
+  it('falls back safely when four double-width columns cannot fit', () => {
+    const value = '𠀀';
+    const output = tables.renderRecordTable([
+      { a: value, b: value, c: value, d: value }
+    ], { columns: 12 });
+    for (const line of output.split('\n')) {
+      assert.ok(visibleWidth(line) <= 12, `${visibleWidth(line)}: ${line}`);
+    }
+    assert.equal(compactOutput(output).replace(/[ABCD]/g, ''), value.repeat(4), output);
+    assert.doesNotMatch(output, /…/);
+  });
+
+  it('keeps ZWJ emoji grapheme clusters intact in narrow columns', () => {
+    const family = '👨‍👩‍👧‍👦';
+    const output = tables.renderRecordTable([{ value: family }], { columns: 14 });
+    for (const line of output.split('\n')) {
+      assert.ok(visibleWidth(line) <= 14, `${visibleWidth(line)}: ${line}`);
+    }
+    assert.ok(output.includes(family), output);
+    assert.ok(compactOutput(output).includes(family), output);
+    assert.doesNotMatch(output, /…/);
+  });
 });
