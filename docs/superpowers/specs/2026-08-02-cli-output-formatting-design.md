@@ -220,7 +220,7 @@ formatOutput(data, raw = false, options = {}) -> string
 
 主题层集中定义标题、字段、弱化文本、成功状态和分隔线的样式。值格式化层集中定义字段分词、数字、布尔值及已知单位，不感知具体 CLI 命令。
 
-实现使用一个表格排版依赖和一个轻量 ANSI 颜色依赖。依赖必须支持 Node.js 18 和 CommonJS，不引入运行时网络访问。
+实现使用三个专用运行时依赖：表格排版 `cli-table3`、轻量 ANSI 颜色 `picocolors`，以及 Unicode 显示宽度 `string-width`。最后一项作为直接依赖，使宽度分配和预换行与表格库使用相同的 Unicode 宽度规则。所有依赖必须支持 Node.js 18 和 CommonJS，不引入运行时网络访问。
 
 ## 数据流
 

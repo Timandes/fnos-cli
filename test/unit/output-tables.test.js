@@ -1,5 +1,6 @@
 const assert = require('node:assert/strict');
 const { describe, it } = require('mocha');
+const stringWidth = require('string-width');
 
 function loadTables() {
   try {
@@ -11,9 +12,11 @@ function loadTables() {
 }
 
 function visibleWidth(value) {
-  const plain = value.replace(/\u001b\[[0-9;]*m/g, '');
-  return Array.from(plain).reduce((width, character) =>
-    width + (/^[\u2e80-\u9fff\uf900-\ufaff\uff01-\uff60]$/.test(character) ? 2 : 1), 0);
+  return stringWidth(value.replace(/\u001b\[[0-9;]*m/g, ''));
+}
+
+function compactOutput(value) {
+  return value.replace(/\u001b\[[0-9;]*m/g, '').replace(/[\s─]/g, '');
 }
 
 const tables = loadTables();
@@ -76,5 +79,33 @@ describe('output tables', () => {
     const longValue = 'x'.repeat(120);
     const output = tables.renderRecordTable([{ name: 'disk', description: longValue }]);
     assert.match(output, new RegExp(longValue));
+  });
+
+  it('hard-wraps unbroken ASCII and Chinese values without ellipsizing them', () => {
+    const ascii = 'a'.repeat(48);
+    const chinese = '这是没有空格的很长中文说明字段'.repeat(2);
+    const output = tables.renderRecordTable([
+      { description: ascii },
+      { description: chinese }
+    ], { columns: 16 });
+    assert.ok(output.split('\n').length > 4, output);
+    assert.ok(compactOutput(output).includes(ascii), output);
+    assert.ok(compactOutput(output).includes(chinese), output);
+    assert.doesNotMatch(output, /…/);
+  });
+
+  it('uses Unicode display width for CJK extensions and emoji in narrow columns', () => {
+    const cjkExtension = '𠀀'.repeat(12);
+    const emoji = '😀'.repeat(12);
+    const output = tables.renderRecordTable([
+      { description: cjkExtension },
+      { description: emoji }
+    ], { columns: 16 });
+    for (const line of output.split('\n')) {
+      assert.ok(visibleWidth(line) <= 16, `${visibleWidth(line)}: ${line}`);
+    }
+    assert.ok(compactOutput(output).includes(cjkExtension), output);
+    assert.ok(compactOutput(output).includes(emoji), output);
+    assert.doesNotMatch(output, /…/);
   });
 });

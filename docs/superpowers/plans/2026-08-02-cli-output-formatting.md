@@ -6,7 +6,7 @@
 
 **Architecture:** Keep `formatOutput(data, raw, options)` as the public entry point, but move scalar formatting, ANSI theming, table layout, and recursive object layout into focused modules under `src/utils/output/`. The command runner supplies an injectable terminal context; the formatter separates request metadata from business data and selects a renderer without knowing individual CLI commands.
 
-**Tech Stack:** Node.js 18+, CommonJS, Mocha, Node strict assertions, `cli-table3@^0.6.5`, `picocolors@^1.1.1`.
+**Tech Stack:** Node.js 18+, CommonJS, Mocha, Node strict assertions, `cli-table3@^0.6.5`, `picocolors@^1.1.1`, `string-width@^4.2.3`.
 
 ## Global Constraints
 
@@ -30,7 +30,7 @@
 
 ## File Structure
 
-- Modify `package.json` and `package-lock.json` to add the two runtime dependencies.
+- Modify `package.json` and `package-lock.json` to add the three specialized runtime dependencies for tables, ANSI color, and Unicode display width.
 - Create `src/utils/output/values.js` for plain-object detection, field labels, scalar units, number grouping, and safe compact values.
 - Create `src/utils/output/theme.js` for explicitly enabled or disabled ANSI functions.
 - Create `src/utils/output/tables.js` for record tables, key–value tables, width allocation, wrapping, alignment, and indentation.

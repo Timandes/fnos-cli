@@ -1,4 +1,5 @@
 const Table = require('cli-table3');
+const stringWidth = require('string-width');
 const { formatValue, humanizeKey } = require('./values');
 const { createTheme } = require('./theme');
 
@@ -21,11 +22,28 @@ const TABLE_STYLE = {
 };
 
 function textLength(value) {
-  return Array.from(String(value).replace(/\u001b\[[0-9;]*m/g, '')).reduce(
-    (width, character) => width +
-      (/^[\u2e80-\u9fff\uf900-\ufaff\uff01-\uff60]$/.test(character) ? 2 : 1),
-    0
-  );
+  return stringWidth(String(value));
+}
+
+function hardWrap(value, width) {
+  if (!width) return String(value);
+  const lines = [];
+  for (const inputLine of String(value).split('\n')) {
+    let line = '';
+    let lineWidth = 0;
+    for (const character of Array.from(inputLine)) {
+      const characterWidth = stringWidth(character);
+      if (lineWidth > 0 && lineWidth + characterWidth > width) {
+        lines.push(line);
+        line = '';
+        lineWidth = 0;
+      }
+      line += character;
+      lineWidth += characterWidth;
+    }
+    lines.push(line);
+  }
+  return lines.join('\n');
 }
 
 function fitWidths(desired, columns, indent, gapWidth) {
@@ -79,14 +97,16 @@ function renderRecordTable(rows, options = {}) {
     .filter(row => row && Object.prototype.hasOwnProperty.call(row, key))
     .every(row => typeof row[key] === 'number'));
   const table = new Table({
-    head: labels.map(theme.label),
+    head: labels.map((label, index) => theme.label(widths ? hardWrap(label, widths[index]) : label)),
     chars: WEAK_CHARS,
     style: TABLE_STYLE,
     colAligns: numericColumns.map(numeric => numeric ? 'right' : 'left'),
     wordWrap: true,
     ...(widths ? { colWidths: widths } : {})
   });
-  for (const row of formattedRows) table.push(row);
+  for (const row of formattedRows) {
+    table.push(widths ? row.map((value, index) => hardWrap(value, widths[index])) : row);
+  }
   return indentLines(table.toString(), indent);
 }
 
@@ -104,7 +124,11 @@ function renderKeyValueTable(entries, options = {}) {
     wordWrap: true,
     ...(widths ? { colWidths: widths } : {})
   });
-  for (const entry of entries) table.push([theme.label(entry.key), entry.value]);
+  for (const entry of entries) {
+    table.push(widths
+      ? [theme.label(hardWrap(entry.key, widths[0])), hardWrap(entry.value, widths[1])]
+      : [theme.label(entry.key), entry.value]);
+  }
   return indentLines(table.toString(), indent);
 }
 
