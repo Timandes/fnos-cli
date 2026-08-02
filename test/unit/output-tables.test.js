@@ -1,4 +1,5 @@
 const assert = require('node:assert/strict');
+const { stripVTControlCharacters } = require('node:util');
 const { describe, it } = require('mocha');
 const stringWidth = require('string-width');
 
@@ -12,7 +13,7 @@ function loadTables() {
 }
 
 function visibleWidth(value) {
-  return stringWidth(value.replace(/\u001b\[[0-9;]*m/g, ''));
+  return stringWidth(stripVTControlCharacters(value));
 }
 
 function compactOutput(value) {
@@ -51,6 +52,18 @@ describe('output tables', () => {
     const shortRow = output.split('\n').find(line => /^a\s/.test(line));
     const longRow = output.split('\n').find(line => /^long\s/.test(line));
     assert.equal(shortRow.indexOf('2') + 1, longRow.indexOf('1,000') + 5);
+  });
+
+  it('keeps a numeric column right-aligned when records contain missing values', () => {
+    const output = tables.renderRecordTable([
+      { name: 'a', count: 2 },
+      { name: 'long', count: 1000 },
+      { name: 'empty', count: null },
+      { name: 'absent' }
+    ], { columns: 60 });
+    const shortRow = output.split('\n').find(line => /^a\s/.test(line));
+    const longRow = output.split('\n').find(line => /^long\s/.test(line));
+    assert.equal(shortRow.indexOf('2') + 1, longRow.indexOf('1,000') + 5, output);
   });
 
   it('wraps Chinese and long values inside a known terminal width', () => {
@@ -148,5 +161,17 @@ describe('output tables', () => {
     }
     assert.equal(compactOutput(output), '𠀀xx', output);
     assert.doesNotMatch(output, /…/);
+  });
+
+  it('removes terminal control sequences from direct field-value entries before wrapping', () => {
+    const value = 'AB\u001b[31m中文CD\u001b[0m';
+    const output = tables.renderKeyValueTable([
+      { key: 'K\u001b[35m', value }
+    ], { columns: 6, color: false });
+    for (const line of output.split('\n')) {
+      assert.ok(visibleWidth(line) <= 6, `${visibleWidth(line)}: ${line}`);
+    }
+    assert.doesNotMatch(output, /\u001b|\[31m|\[0m|\[35m/);
+    assert.ok(output.replace(/\s/g, '').includes('KAB中文CD'), output);
   });
 });

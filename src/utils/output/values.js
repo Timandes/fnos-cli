@@ -1,20 +1,26 @@
+const { stripVTControlCharacters } = require('node:util');
+
 const BYTE_GROUPS = new Set(['mem', 'swap']);
 const BYTE_FIELDS = new Set(['total', 'used', 'free', 'available', 'cached', 'buffers']);
 const SPEED_GROUPS = new Set(['storespeed', 'netspeed']);
 const PERCENT_FIELDS = new Set(['busy', 'cpubusy', 'mempercent']);
 
 function normalizedName(value) {
-  return String(value).replace(/[_\s-]/g, '').toLowerCase();
+  return sanitizeText(value).replace(/[_\s-]/g, '').toLowerCase();
+}
+
+function sanitizeText(value) {
+  return stripVTControlCharacters(String(value));
 }
 
 function humanizeKey(key) {
-  const words = String(key)
+  const words = sanitizeText(key)
     .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
     .replace(/[_-]+/g, ' ')
     .trim()
     .toLowerCase();
-  if (!words) return String(key);
+  if (!words) return sanitizeText(key);
   return (words.charAt(0).toUpperCase() + words.slice(1))
     .replace(/\bcpu\b/gi, 'CPU')
     .replace(/\bgpu\b/gi, 'GPU')
@@ -41,7 +47,7 @@ function formatScalar(key, value, path = []) {
   if (value === null || value === undefined) return '—';
   if (value === '') return '\"\"';
   if (typeof value === 'boolean') return value ? '✓ Yes' : '✗ No';
-  if (typeof value !== 'number') return String(value);
+  if (typeof value !== 'number') return sanitizeText(value);
   const field = normalizedName(key);
   const group = normalizedName(path[path.length - 1] || '');
   if (BYTE_GROUPS.has(group) && BYTE_FIELDS.has(field)) return formatBytes(value);
@@ -89,4 +95,4 @@ function isRecordArray(value) {
     value.every(item => item === null || isPlainObject(item));
 }
 
-module.exports = { compactValue, formatValue, humanizeKey, isPlainObject, isRecordArray };
+module.exports = { compactValue, formatValue, humanizeKey, isPlainObject, isRecordArray, sanitizeText };

@@ -1,5 +1,7 @@
 const assert = require('node:assert/strict');
 const { describe, it } = require('mocha');
+const { stripVTControlCharacters } = require('node:util');
+const stringWidth = require('string-width');
 const { formatOutput } = require('../../src/utils/formatter');
 
 const ANSI = /\u001b\[[0-9;]*m/g;
@@ -66,6 +68,40 @@ describe('human-readable response formatting', () => {
     const response = { result: 'succ', data: { enabled: false, count: 0 } };
     assert.equal(
       formatOutput(response, true, { color: true, columns: 20 }),
+      JSON.stringify(response, null, 2)
+    );
+  });
+
+  it('wraps nested object and record-array titles within a known narrow terminal width', () => {
+    const response = {
+      data: {
+        veryLongNestedObjectField: { value: 'nested' },
+        veryLongRecordArrayField: [{ value: 'array' }]
+      }
+    };
+    const output = formatOutput(response, false, { color: false, columns: 12 });
+    for (const line of output.split('\n')) {
+      assert.ok(stringWidth(stripVTControlCharacters(line)) <= 12, line);
+    }
+    const compact = output.replace(/[\s─]/g, '');
+    assert.ok(compact.includes('Verylongnestedobjectfield'), output);
+    assert.ok(compact.includes('Verylongrecordarrayfield(1)'), output);
+  });
+
+  it('removes terminal control sequences from human output before narrow wrapping', () => {
+    const response = {
+      data: { 'K\u001b[35m': 'AB\u001b[31m中文CD\u001b[0m' },
+      req: 'app\u001b[31m.request',
+      reqid: 'id\u001b[0m-1'
+    };
+    const output = formatOutput(response, false, { color: false, columns: 6 });
+    for (const line of output.split('\n')) {
+      assert.ok(stringWidth(stripVTControlCharacters(line)) <= 6, line);
+    }
+    assert.doesNotMatch(output, /\u001b|\[31m|\[0m|\[35m/);
+    assert.ok(output.replace(/\s/g, '').includes('KAB中文CD'), output);
+    assert.equal(
+      formatOutput(response, true, { color: false, columns: 6 }),
       JSON.stringify(response, null, 2)
     );
   });
