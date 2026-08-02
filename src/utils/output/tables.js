@@ -62,9 +62,11 @@ function fitWidths(desired, minimums, columns, indent, gapWidth) {
   if (budget < minimums.reduce((sum, width) => sum + width, 0)) return null;
   const widths = desired.map((width, index) => Math.max(minimums[index], width));
   while (widths.reduce((sum, width) => sum + width, 0) > budget) {
-    const widest = widths.reduce((best, width, index) =>
-      width > widths[best] ? index : best, 0);
-    if (widths[widest] === minimums[widest]) break;
+    const candidates = widths.map((width, index) => width > minimums[index] ? index : -1)
+      .filter(index => index !== -1);
+    if (candidates.length === 0) break;
+    const widest = candidates.reduce((best, index) =>
+      widths[index] > widths[best] ? index : best);
     widths[widest] -= 1;
   }
   return widths;

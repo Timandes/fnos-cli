@@ -131,4 +131,22 @@ describe('output tables', () => {
     assert.ok(compactOutput(output).includes(family), output);
     assert.doesNotMatch(output, /…/);
   });
+
+  it('shrinks a record column that remains above its safe minimum', () => {
+    const output = tables.renderRecordTable([{ a: '𠀀', b: 'xx' }], { columns: 5 });
+    for (const line of output.split('\n')) {
+      assert.ok(visibleWidth(line) <= 5, `${visibleWidth(line)}: ${line}`);
+    }
+    assert.equal(compactOutput(output).replace(/[AB]/g, ''), '𠀀xx', output);
+    assert.doesNotMatch(output, /…/);
+  });
+
+  it('shrinks a field-value column that remains above its safe minimum', () => {
+    const output = tables.renderKeyValueTable([{ key: '𠀀', value: 'xx' }], { columns: 5 });
+    for (const line of output.split('\n')) {
+      assert.ok(visibleWidth(line) <= 5, `${visibleWidth(line)}: ${line}`);
+    }
+    assert.equal(compactOutput(output), '𠀀xx', output);
+    assert.doesNotMatch(output, /…/);
+  });
 });
