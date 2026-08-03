@@ -4,6 +4,25 @@ const { formatOutput } = require('../utils/formatter');
 const { resolveCredentials } = require('../utils/auth-helper');
 const { errorMessage } = require('../utils/errors');
 
+function outputOptions(raw, dependencies) {
+  const env = dependencies.env || process.env;
+  const stdoutIsTTY = dependencies.stdoutIsTTY === undefined
+    ? Boolean(process.stdout.isTTY)
+    : Boolean(dependencies.stdoutIsTTY);
+  const stdoutColumns = dependencies.stdoutColumns === undefined
+    ? process.stdout.columns
+    : dependencies.stdoutColumns;
+  const color = !raw && stdoutIsTTY &&
+    !Object.prototype.hasOwnProperty.call(env, 'NO_COLOR') &&
+    env.TERM !== 'dumb';
+  return {
+    color,
+    columns: stdoutIsTTY && Number.isInteger(stdoutColumns) && stdoutColumns > 0
+      ? stdoutColumns
+      : undefined
+  };
+}
+
 async function runCommand(context, dependencies = {}) {
   const createClient = dependencies.createClient || clientUtils.createClient;
   const getSDKInstance = dependencies.getSDKInstance || clientUtils.getSDKInstance;
@@ -24,7 +43,8 @@ async function runCommand(context, dependencies = {}) {
     });
     const instance = getSDKInstance(client, context.domain.className);
     const result = await instance[context.definition.method](...args);
-    stdout(formatOutput(result, context.globalOptions.raw));
+    const raw = Boolean(context.globalOptions.raw);
+    stdout(formatOutput(result, raw, outputOptions(raw, dependencies)));
     return 0;
   } catch (error) {
     stderr(`Error: ${errorMessage(error)}`);

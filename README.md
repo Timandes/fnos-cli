@@ -143,7 +143,9 @@ fnos security.getProcessTraffic --processes '[{"pid":1001,"process":"demo"}]'
 | `-V, --version` | 显示版本 |
 | `-h, --help` | 显示帮助 |
 
-命令结果写入 stdout，日志写入 stderr：
+默认输出面向人类阅读：对象数组显示为表格，普通对象显示为分层的字段—值布局。交互终端会根据可用宽度自动换行并使用克制配色；管道、文件重定向、`TERM=dumb` 或设置 `NO_COLOR` 时不会输出 ANSI 色码。
+
+命令结果写入 stdout，日志写入 stderr。脚本和机器解析应使用 `--raw` 获取原始 JSON：
 
 ```bash
 fnos resmon.cpu --raw > result.json 2> fnos.log
