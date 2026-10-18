@@ -2,6 +2,16 @@
 
 fnos-cli exposes 111 commands across 21 domains.
 
+## Authentication Commands
+
+- `fnos login -e <endpoint> -u <username> -p <password>`: password login (default).
+- `fnos login --auth oauth --server <name> -e https://<host>:<port>`: interactive browser authorization and code entry.
+- `--allow-insecure-http` explicitly permits an HTTP origin for OAuth testing; it is saved with that server.
+- `fnos auth.status --server <name> [--raw]`: local metadata only; does not verify server access.
+- `fnos logout --server <name>`: clear the selected local credential record.
+
+Saved servers choose their authentication transport automatically. Existing records without `authType` use password authentication. OAuth login requires a TTY; business commands reuse and refresh saved sessions without prompting.
+
 ## Shared Authentication Options
 
 Every business command accepts these authentication options.

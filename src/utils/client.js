@@ -5,6 +5,7 @@
 const sdk = require('fnos');
 const settings = require('./settings');
 const { logger } = require('./logger');
+const { AuthenticationError } = require('./auth-errors');
 
 const SDK_CLASS_NAMES = [
   'ResourceMonitor', 'Store', 'SystemInfo', 'User', 'Network', 'File', 'SAC',
@@ -12,14 +13,6 @@ const SDK_CLASS_NAMES = [
   'BackupManager', 'DownloadCenter', 'IPBlocker', 'LicenseManager',
   'LiveUpdate', 'MountManager', 'NetworkServer', 'Security', 'SystemRestore'
 ];
-
-class AuthenticationError extends Error {
-  constructor(message) {
-    super(message);
-    this.name = 'AuthenticationError';
-    this.exitCode = 3;
-  }
-}
 
 function canUseToken(credentials) {
   return credentials.credentialVersion === 2 &&

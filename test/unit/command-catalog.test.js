@@ -34,9 +34,9 @@ describe('complete command catalog', () => {
     for (const legacyName of LEGACY_COMMANDS) assert.ok(names.includes(legacyName), legacyName);
   });
 
-  it('references classes and methods exported by fnos 0.4.0', () => {
+  it('references classes and methods exported by fnos 0.5.0', () => {
     assert.ok(COMMAND_CATALOG, 'complete command catalog must be implemented');
-    assert.equal(sdk.version, '0.4.0');
+    assert.equal(sdk.version, '0.5.0');
     for (const [domainName, domain] of Object.entries(COMMAND_CATALOG)) {
       const Constructor = sdk[domain.className];
       assert.equal(typeof Constructor, 'function', `${domainName}: ${domain.className}`);

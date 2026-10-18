@@ -116,8 +116,15 @@ describe('fnos CLI smoke tests', function () {
     for (const [domainName, domain] of Object.entries(COMMAND_CATALOG)) {
       for (const [commandName, definition] of Object.entries(domain.commands)) {
         const result = runCli(commandArgs(domainName, commandName, definition), testHome);
-        assert.equal(result.status, 0, `${domainName}.${commandName}: ${result.stderr || result.error?.message}`);
         const response = JSON.parse(result.stdout);
+        if (`${domainName}.${commandName}` === 'sysinfo.getReservedPartition') {
+          // This pinned fixture deliberately returns a known fnOS business error.
+          assert.equal(result.status, 1, result.stderr);
+          assert.equal(response.errno, 100060001);
+          assert.equal(response.result, 'fail');
+        } else {
+          assert.equal(result.status, 0, `${domainName}.${commandName}: ${result.stderr || result.error?.message}`);
+        }
         assert.doesNotMatch(String(response.errmsg || ''), /Unknown request type/, `${domainName}.${commandName}`);
       }
     }

@@ -3,6 +3,11 @@ const { createClient } = require('../utils/client');
 const { resolveServerName } = require('../utils/auth-helper');
 const { errorMessage } = require('../utils/errors');
 const { selectServer } = require('../utils/server-selector');
+const { loginOAuth } = require('../utils/oauth');
+const { CommandParameterError } = require('./options');
+const { Option } = require('commander');
+const { fixedValues, withCompletion } = require('../completion/metadata');
+const { formatOutput } = require('../utils/formatter');
 const {
   registerAuthenticationOptions,
   registerServerOption
@@ -11,11 +16,33 @@ const {
 function registerLoginCommand(program, dependencies = {}) {
   const create = dependencies.createClient || createClient;
   const stderr = dependencies.stderr || console.error;
+  const stdout = dependencies.stdout || console.log;
   const command = program.command('login').description('Login to fnOS and save credentials');
-  registerAuthenticationOptions(command, true);
+  registerAuthenticationOptions(command);
+  command.addOption(withCompletion(
+    new Option('--auth <type>', 'Authentication type (default: password)').default('password'),
+    fixedValues(['password', 'oauth'])
+  ));
+  command.option('--allow-insecure-http', 'Allow plaintext HTTP for OAuth testing');
   command.action(async (options) => {
     let client;
+    let release;
     try {
+      if (!['password', 'oauth'].includes(options.auth)) throw new CommandParameterError('--auth must be password or oauth.');
+      if (!options.endpoint) throw new CommandParameterError('--endpoint is required.');
+      if (options.auth === 'oauth') {
+        if ([options.username, options.password, options.twofaCode, options.trustDevice, options.verifySsl].some(value => value !== undefined)) {
+          throw new CommandParameterError('OAuth login cannot use username, password, two-factor, trust-device or verify-ssl options.');
+        }
+        const result = await (dependencies.loginOAuth || loginOAuth)(options, dependencies);
+        stdout(formatOutput(result, Boolean(program.opts().raw)));
+        process.exitCode = 0;
+        return;
+      }
+      if (!options.username || !options.password) throw new CommandParameterError('Password login requires -e/--endpoint, -u/--username and -p/--password.');
+      if (options.allowInsecureHttp) throw new CommandParameterError('--allow-insecure-http requires --auth oauth.');
+      const store = dependencies.settings || settings;
+      release = await store.acquireServerLock(options.server || 'default');
       client = await create({
         endpoint: options.endpoint,
         username: options.username,
@@ -32,7 +59,8 @@ function registerLoginCommand(program, dependencies = {}) {
       stderr(`Error: ${errorMessage(error)}`);
       process.exitCode = error.exitCode || 1;
     } finally {
-      if (client) client.close();
+      try { if (client) client.close(); }
+      finally { if (release) release(); }
     }
   });
 }
@@ -57,7 +85,8 @@ function registerLogoutCommand(program, dependencies = {}) {
         select: dependencies.selectServer || selectServer,
         selectorDependencies: dependencies.selectorDependencies
       });
-      store.clearCredentials(serverName);
+      if (store.withServerLock) await store.withServerLock(serverName, async () => store.clearCredentials(serverName));
+      else store.clearCredentials(serverName);
       stdout(`Logged out from "${serverName}" successfully. Credentials cleared.`);
       process.exitCode = 0;
     } catch (error) {
@@ -67,4 +96,34 @@ function registerLogoutCommand(program, dependencies = {}) {
   });
 }
 
-module.exports = { registerLoginCommand, registerLogoutCommand };
+/** Show local metadata without disclosing credentials or contacting the server. */
+function registerAuthStatusCommand(program, dependencies = {}) {
+  const store = dependencies.settings || settings;
+  const stdout = dependencies.stdout || console.log;
+  const stderr = dependencies.stderr || console.error;
+  const command = program.command('auth.status').description('Show local authentication metadata (does not verify server access)');
+  registerServerOption(command);
+  command.action(async options => {
+    try {
+      const serverName = await (dependencies.resolveServerName || resolveServerName)(options.server, {
+        settingsStore: store, select: dependencies.selectServer || selectServer,
+        selectorDependencies: dependencies.selectorDependencies
+      });
+      const credentials = store.getCredentials(serverName);
+      const authType = credentials.authType || 'password';
+      const status = { server: serverName, authType, endpoint: credentials.endpoint,
+        ...(credentials.username ? { username: credentials.username } : {}) };
+      if (authType === 'oauth') {
+        status.expiresAt = credentials.oauth.session.expiresAt;
+        status.expired = status.expiresAt <= Math.floor(Date.now() / 1000);
+      }
+      stdout(formatOutput(status, Boolean(program.opts().raw)));
+      process.exitCode = 0;
+    } catch (error) {
+      stderr(`Error: ${errorMessage(error)}`);
+      process.exitCode = error.exitCode || 1;
+    }
+  });
+}
+
+module.exports = { registerLoginCommand, registerLogoutCommand, registerAuthStatusCommand };

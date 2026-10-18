@@ -93,7 +93,8 @@ async function resolveCredentials(options, dependencies = {}) {
     settingsStore
   });
   const credentials = settingsStore.getCredentials(serverName);
-  if (!credentials || !credentials.endpoint || !credentials.username || !credentials.password) {
+  if (!credentials || !credentials.endpoint ||
+      (credentials.authType !== 'oauth' && (!credentials.username || !credentials.password))) {
     throw credentialError('No valid credentials found. Please use "fnos login" or provide -e/-u/-p options.');
   }
 

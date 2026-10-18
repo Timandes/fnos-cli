@@ -7,6 +7,23 @@
 
 ## [Unreleased]
 
+### 新增
+
+- 显式 `login --auth oauth` 浏览器授权，支持 PKCE、交互授权码和成功验证后保存 session
+- `auth.status` 查询选定 server 的本地认证类型和到期信息
+- OAuth session 恢复、自动刷新写回、同 server 进程锁和配置更新锁
+- OAuth 登录/业务命令子进程测试，覆盖并发刷新、取消、保存失败和凭据脱敏
+
+### 变更
+
+- SDK 依赖升级到 `fnos ^0.5.0`，密码登录仍为默认方式，兼容缺少 authType 的旧配置
+- 业务响应明确失败时返回非零退出码，`--raw` 保留原始响应
+- 补齐 refresh token、PKCE verifier 和 Bearer 授权信息的日志脱敏
+
+### 修复
+
+- 修复 Node 18 对终端 DCS 等控制串清理不完整的问题，保持最低支持版本的输出测试通过
+
 ## [0.4.0] - 2026-08-04
 
 ### 新增

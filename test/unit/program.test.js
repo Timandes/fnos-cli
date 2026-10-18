@@ -18,7 +18,7 @@ describe('CLI program', () => {
       assert.equal(typeof entry.createProgram, 'function');
       assert.equal(typeof entry.main, 'function');
       const program = entry.createProgram();
-      assert.equal(program.commands.length, 114);
+      assert.equal(program.commands.length, 115);
       assert.ok(program.commands.some((command) => command.name() === 'docker.listContainers'));
       assert.ok(program.commands.some((command) => command.name() === 'backup.listTasks'));
       assert.ok(program.commands.some((command) => command.name() === 'completion'));
