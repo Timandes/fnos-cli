@@ -5,6 +5,7 @@ const settings = require('./settings');
 const { AuthenticationError } = require('./auth-errors');
 const { CommandParameterError } = require('../commands/options');
 const { openBrowser } = require('./browser');
+const { describeOAuthTransportError } = require('./oauth-transport');
 
 // oauth4webapi requires Web Crypto, which is not global in all Node 18 invocations.
 if (!globalThis.crypto) globalThis.crypto = webcrypto;
@@ -24,7 +25,9 @@ function validateOAuthEndpoint(endpoint, allowInsecureHttp = false) {
 /** Preserve SDK retry behavior, but classify rejected token operations and bound their duration. */
 function createOAuthFetch(fetcher = globalThis.fetch) {
   return async (url, init = {}) => {
-    const response = await fetcher(url, { ...init, signal: init.signal || AbortSignal.timeout(60000) });
+    let response;
+    try { response = await fetcher(url, { ...init, signal: init.signal || AbortSignal.timeout(60000) }); }
+    catch (error) { throw describeOAuthTransportError(error, url); }
     if (new URL(url).pathname.startsWith('/oauthapi/') && [400, 401, 403].includes(response.status)) {
       throw new AuthenticationError(`OAuth authorization or refresh was rejected (HTTP ${response.status}). Run "fnos login --auth oauth" again.`);
     }

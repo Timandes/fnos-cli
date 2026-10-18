@@ -127,6 +127,8 @@ fnos logout --server home-oauth
 
 OAuth endpoint 必须是完整的 HTTPS origin，例如 `https://nas.example.com:5667`，不接受路径、查询参数、URL 内的账号密码或 WS/WSS 地址。HTTPS 默认验证证书；自签名环境应配置受信任的 CA（例如启动 CLI 前设置 `NODE_EXTRA_CA_CERTS`）。OAuth 不使用 `--verify-ssl`，也不能与 `-u`、`-p`、`--twofa-code` 或 `--trust-device` 混用。
 
+OAuth 请求失败时，CLI 会显示安全处理后的请求地址、底层网络/TLS 错误码及处理建议。`DEPTH_ZERO_SELF_SIGNED_CERT` 表示自签名证书尚未受信任；`ERR_TLS_CERT_ALTNAME_INVALID` 表示证书没有覆盖访问域名。导入 CA 只能解决信任问题，证书的 SAN 仍须包含 endpoint 使用的域名；例如仅覆盖 `fnOS` 的默认证书不能用于 `nas.example.com`。应在 NAS 或 HTTPS 反向代理上配置匹配域名的可信证书。`NODE_EXTRA_CA_CERTS` 要在启动 Node 进程前设置，不能绕过域名验证。
+
 仅在测试明文 HTTP 服务时显式允许：
 
 ```bash

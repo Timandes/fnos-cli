@@ -9,6 +9,7 @@ globalThis.fetch = async (url, init) => {
   if (process.send) process.send({ route });
   const reply = fixture.responses[route];
   if (!reply) throw new Error(`Unexpected test route ${route}`);
+  if (reply.error) throw new TypeError('fetch failed', { cause: Object.assign(new Error('fixture transport failure'), { code: reply.error }) });
   if (reply.delay) await new Promise(resolve => setTimeout(resolve, reply.delay));
   return new Response(JSON.stringify(reply.body), { status: reply.status || 200 });
 };
