@@ -73,9 +73,10 @@ describe('OAuth authorization flow', () => {
     deps.input.isTTY = false;
     await assert.rejects(oauth.loginOAuth({ endpoint: 'https://nas.example' }, deps), error => error.exitCode === 3);
     deps.input.isTTY = true;
-    for (const endpoint of ['nas:5667', 'wss://nas.example', 'http://nas.example', 'https://nas.example/path', 'https://a:b@nas.example']) {
+    for (const endpoint of ['nas:5667', 'wss://nas.example', 'https://nas.example/path', 'https://a:b@nas.example']) {
       await assert.rejects(oauth.loginOAuth({ endpoint }, deps), error => error.exitCode === 4);
     }
+    await assert.rejects(oauth.loginOAuth({ endpoint: 'http://nas.example', verifySsl: true }, deps), error => error.exitCode === 4);
   });
 
   it('applies a timeout to token requests and preserves network errors as exit code 1', async () => {

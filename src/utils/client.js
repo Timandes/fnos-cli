@@ -86,10 +86,11 @@ async function createClientWithCredentials(credentials, options = {}, dependenci
   const Client = sdkModule.FnosClient;
   const client = new Client();
   const timeout = options.timeout ?? 60;
+  const verifySsl = options.verifySsl === true || credentials.verifySsl === true;
 
   try {
     activeLogger.info(`Connecting to ${credentials.endpoint}...`);
-    await client.connect(credentials.endpoint, timeout * 1000, false, options.verifySsl === true ? false : true);
+    await client.connect(credentials.endpoint, timeout * 1000, false, !verifySsl);
     installHostNameResponseCompatibility(client);
     let result;
     let usedToken = false;
@@ -112,6 +113,7 @@ async function createClientWithCredentials(credentials, options = {}, dependenci
           endpoint: credentials.endpoint,
           username: credentials.username,
           password: credentials.password,
+          verifySsl,
           credentialVersion: 2,
           token: result.token || null,
           longToken: result.longToken || null,

@@ -48,7 +48,7 @@ describe('OAuth CLI subprocess integration', () => {
   it('reports certificate trust failure during code exchange and preserves saved credentials', async () => {
     const context = setup({ '/oauthapi/third-part/token': { error: 'DEPTH_ZERO_SELF_SIGNED_CERT' } });
     context.settings.saveCredentials('home', { endpoint: 'old', username: 'admin', password: 'pw' });
-    const result = await run(['login', '--auth', 'oauth', '-s', 'home', '-e', 'https://nas.example', '--raw'], context, { tty: true, input: 'test-code' }).result;
+    const result = await run(['login', '--auth', 'oauth', '-s', 'home', '-e', 'https://nas.example', '--verify-ssl', '--raw'], context, { tty: true, input: 'test-code' }).result;
     assert.equal(result.status, 1);
     assert.equal(result.stdout, '');
     assert.match(result.stderr, /DEPTH_ZERO_SELF_SIGNED_CERT/);
@@ -77,6 +77,7 @@ describe('OAuth CLI subprocess integration', () => {
     assert.equal(result.status, 0, result.stderr);
     const status = JSON.parse(result.stdout);
     assert.equal(status.authType, 'oauth');
+    assert.equal(status.verifySsl, false);
     assert.equal(status.expiresAt, 2000000000);
     assert.doesNotMatch(result.stdout + result.stderr, /access-old|refresh-old|password|secret/);
     assert.deepEqual(requests(context), []);

@@ -17,7 +17,8 @@ function renderCommandReference() {
     '',
     '- `fnos login -e <endpoint> -u <username> -p <password>`: password login (default).',
     '- `fnos login --auth oauth --server <name> -e https://<host>:<port>`: interactive browser authorization and code entry.',
-    '- `--allow-insecure-http` explicitly permits an HTTP origin for OAuth testing; it is saved with that server.',
+    '- `--verify-ssl` enables strict HTTPS certificate verification; login saves the policy with that server. Verification is disabled by default, including for older OAuth records.',
+    '- HTTP origins work without an extra flag; `--verify-ssl` requires an HTTPS origin for OAuth.',
     '- `fnos auth.status --server <name> [--raw]`: local metadata only; does not verify server access.',
     '- `fnos logout --server <name>`: clear the selected local credential record.',
     '',
@@ -35,7 +36,7 @@ function renderCommandReference() {
     '| `-p, --password <password>` | Temporary password. |',
     '| `--twofa-code <code>` | Six-digit two-factor code. |',
     '| `--trust-device` | Trust this device after two-factor login. |',
-    '| `--verify-ssl` | Verify the WSS server certificate. |',
+    '| `--verify-ssl` | Verify HTTPS/WSS certificates; login saves the policy. Default: disabled. |',
     '',
     '`--server` cannot be combined with `-e`, `-u`, or `-p`. ' +
       'Temporary endpoint, username, and password must be supplied together.',

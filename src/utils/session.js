@@ -2,7 +2,7 @@ const sdk = require('fnos');
 const settings = require('./settings');
 const clientUtils = require('./client');
 const { AuthenticationError } = require('./auth-errors');
-const { createOAuthFetch, classifyOAuthClientErrors } = require('./oauth');
+const { createOAuthFetch, classifyOAuthClientErrors, validateOAuthEndpoint } = require('./oauth');
 
 /** Create the selected transport and own its lock/connection until dispose. */
 async function createSession(options, dependencies = {}) {
@@ -10,6 +10,7 @@ async function createSession(options, dependencies = {}) {
   const sdkModule = dependencies.sdk || sdk;
   let credentials = options.credentials;
   let release;
+  let fetch;
   try {
     if (credentials.source === 'settings_file' && !dependencies.createClient) {
       release = await store.acquireServerLock(credentials.serverName);
@@ -20,10 +21,12 @@ async function createSession(options, dependencies = {}) {
     let client;
     if (credentials.authType === 'oauth') {
       const oauth = credentials.oauth;
-      const fetch = createOAuthFetch(dependencies.fetch);
-      const adapter = new sdkModule.FnosOAuthAdapter({ endpoint: credentials.endpoint,
+      const verifySsl = options.verifySsl === true || oauth.verifySsl === true;
+      const endpoint = validateOAuthEndpoint(credentials.endpoint, verifySsl);
+      fetch = createOAuthFetch(dependencies.fetch, { verifySsl });
+      const adapter = new sdkModule.FnosOAuthAdapter({ endpoint,
         clientId: oauth.clientId, deviceId: oauth.deviceId, deviceName: oauth.deviceName,
-        scopes: oauth.scopes, allowInsecureHttp: oauth.allowInsecureHttp === true, fetch });
+        scopes: oauth.scopes, allowInsecureHttp: endpoint.startsWith('http:'), fetch });
       client = new sdkModule.FnosOAuthClient(adapter, oauth.session, {
         fetch,
         saveSession: async next => {
@@ -38,15 +41,19 @@ async function createSession(options, dependencies = {}) {
     let disposed = false;
     return {
       client,
-      dispose() {
+      async dispose() {
         if (disposed) return;
         disposed = true;
         try { if (typeof client.close === 'function') client.close(); }
-        finally { if (release) release(); }
+        finally {
+          if (release) release();
+          if (fetch) await fetch.close();
+        }
       }
     };
   } catch (error) {
     if (release) release();
+    if (fetch) await fetch.close();
     throw error;
   }
 }

@@ -3,7 +3,7 @@ const { createClient } = require('../utils/client');
 const { resolveServerName } = require('../utils/auth-helper');
 const { errorMessage } = require('../utils/errors');
 const { selectServer } = require('../utils/server-selector');
-const { loginOAuth } = require('../utils/oauth');
+const { loginOAuth, validateOAuthEndpoint } = require('../utils/oauth');
 const { CommandParameterError } = require('./options');
 const { Option } = require('commander');
 const { fixedValues, withCompletion } = require('../completion/metadata');
@@ -23,7 +23,6 @@ function registerLoginCommand(program, dependencies = {}) {
     new Option('--auth <type>', 'Authentication type (default: password)').default('password'),
     fixedValues(['password', 'oauth'])
   ));
-  command.option('--allow-insecure-http', 'Allow plaintext HTTP for OAuth testing');
   command.action(async (options) => {
     let client;
     let release;
@@ -31,16 +30,16 @@ function registerLoginCommand(program, dependencies = {}) {
       if (!['password', 'oauth'].includes(options.auth)) throw new CommandParameterError('--auth must be password or oauth.');
       if (!options.endpoint) throw new CommandParameterError('--endpoint is required.');
       if (options.auth === 'oauth') {
-        if ([options.username, options.password, options.twofaCode, options.trustDevice, options.verifySsl].some(value => value !== undefined)) {
-          throw new CommandParameterError('OAuth login cannot use username, password, two-factor, trust-device or verify-ssl options.');
+        if ([options.username, options.password, options.twofaCode, options.trustDevice].some(value => value !== undefined)) {
+          throw new CommandParameterError('OAuth login cannot use username, password, two-factor or trust-device options.');
         }
+        validateOAuthEndpoint(options.endpoint, options.verifySsl === true);
         const result = await (dependencies.loginOAuth || loginOAuth)(options, dependencies);
         stdout(formatOutput(result, Boolean(program.opts().raw)));
         process.exitCode = 0;
         return;
       }
       if (!options.username || !options.password) throw new CommandParameterError('Password login requires -e/--endpoint, -u/--username and -p/--password.');
-      if (options.allowInsecureHttp) throw new CommandParameterError('--allow-insecure-http requires --auth oauth.');
       const store = dependencies.settings || settings;
       release = await store.acquireServerLock(options.server || 'default');
       client = await create({
@@ -112,6 +111,7 @@ function registerAuthStatusCommand(program, dependencies = {}) {
       const credentials = store.getCredentials(serverName);
       const authType = credentials.authType || 'password';
       const status = { server: serverName, authType, endpoint: credentials.endpoint,
+        verifySsl: authType === 'oauth' ? credentials.oauth.verifySsl === true : credentials.verifySsl === true,
         ...(credentials.username ? { username: credentials.username } : {}) };
       if (authType === 'oauth') {
         status.expiresAt = credentials.oauth.session.expiresAt;

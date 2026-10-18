@@ -58,7 +58,7 @@ async function runCommand(context, dependencies = {}) {
     stderr(`Error: ${errorMessage(error)}`);
     return error.exitCode || 1;
   } finally {
-    if (session) session.dispose();
+    if (session) await session.dispose();
   }
 }
 

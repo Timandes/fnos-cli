@@ -10,7 +10,7 @@ const { acquireFileLock, acquireFileLockSync } = require('./file-lock');
 
 const AUTH_FIELDS = [
   'endpoint', 'username', 'password', 'token', 'longToken', 'secret',
-  'credentialVersion', 'secretFormat'
+  'credentialVersion', 'secretFormat', 'verifySsl'
 ];
 const REQUIRED_CREDENTIAL_FIELDS = ['endpoint', 'username', 'password'];
 const SERVER_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
@@ -31,7 +31,7 @@ function pickCredentials(record) {
       ...(record.username ? { username: record.username } : {}),
       oauth: {
         clientId: oauth.clientId, deviceId: oauth.deviceId, deviceName: oauth.deviceName,
-        scopes: [...oauth.scopes], allowInsecureHttp: oauth.allowInsecureHttp === true,
+        scopes: [...oauth.scopes], verifySsl: oauth.verifySsl === true,
         session: { accessToken: oauth.session.accessToken, refreshToken: oauth.session.refreshToken, expiresAt: oauth.session.expiresAt }
       }
     };
@@ -67,6 +67,9 @@ function sameKnownCredentials(left, right) {
 }
 
 function validateCredentialRecord(record, label) {
+  if (record?.verifySsl !== undefined && typeof record.verifySsl !== 'boolean') {
+    throw new ConfigurationError(`Invalid certificate verification policy for server "${label}".`);
+  }
   if (record?.authType !== undefined && !['password', 'oauth'].includes(record.authType)) {
     throw new ConfigurationError(`Unsupported authentication type for server "${label}".`);
   }
@@ -77,9 +80,9 @@ function validateCredentialRecord(record, label) {
     try {
       const url = new URL(record.endpoint);
       validEndpoint = !url.username && !url.password && !url.search && !url.hash && url.pathname === '/' &&
-        (url.protocol === 'https:' || (url.protocol === 'http:' && oauth?.allowInsecureHttp === true));
+        (url.protocol === 'https:' || (url.protocol === 'http:' && oauth?.verifySsl !== true));
     } catch {}
-    if (!validEndpoint || !isPlainObject(oauth) ||
+    if (!validEndpoint || !isPlainObject(oauth) || (oauth.verifySsl !== undefined && typeof oauth.verifySsl !== 'boolean') ||
         !['clientId', 'deviceId', 'deviceName'].every(key => typeof oauth[key] === 'string' && oauth[key].trim()) ||
         !Array.isArray(oauth.scopes) || !oauth.scopes.length || oauth.scopes.some(value => typeof value !== 'string' || !value.trim()) ||
         !isPlainObject(session) || !['accessToken', 'refreshToken'].every(key => typeof session[key] === 'string' && session[key]) ||

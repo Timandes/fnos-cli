@@ -6,7 +6,7 @@
 
 - `fnos login -e <endpoint> -u <username> -p <password>` 保持现有行为。
 - `fnos login --auth oauth --server <name> -e https://<host>:<port>` 创建 PKCE 授权请求，将 URL 和授权码提示写 stderr。用户可按回车打开系统默认浏览器，或手动打开链接并直接粘贴授权码；启动失败不终止授权，仍可手动继续或按回车重试。首次授权要求交互终端，业务命令不自动启动授权。
-- OAuth endpoint 必须是 HTTPS origin；测试 HTTP 须显式提供 `--allow-insecure-http` 并保存该策略。禁止默默转换 WS 地址或全局关闭证书验证。
+- OAuth endpoint 可用 HTTP 或 HTTPS origin；HTTP 无需额外参数。只保留 `--verify-ssl`，默认跳过 HTTPS 证书信任链和域名验证，已有 OAuth 记录也采用此默认值。HTTP 与 `--verify-ssl` 冲突。每个执行会话使用独立 dispatcher，不修改全局 TLS 验证策略。
 - 参数错误返回 4，认证失败/取消/过期返回 3，网络、存储和业务失败返回 1。stdout 保留结果，`--raw` 使用 JSON。
 - OAuth 登录验证 `User.getInfo()` 成功后原子替换同名记录；失败保留旧记录。授权码和 verifier 只保留在本次进程中。
 - `fnos auth.status --server <name>` 只显示本地认证类型、endpoint、可用账户标识和 session 到期时间，不泄漏 token，也不宣称服务端仍有效。
@@ -16,7 +16,8 @@
 
 - 缺少 `authType` 的记录视为 password；未知值拒绝。旧版顶层凭据继续迁移到 servers.default。
 - password 使用原有 credentialVersion 2、secretFormat decrypted-v1 和 WS token 字段；成功登录保存时补 authType=password。
-- OAuth 记录为 `{authType:'oauth', endpoint, username?, oauth:{clientId,deviceId,deviceName,scopes,allowInsecureHttp,session:{accessToken,refreshToken,expiresAt}}}`，expiresAt 是 Unix 秒。
+- OAuth 记录为 `{authType:'oauth', endpoint, username?, oauth:{clientId,deviceId,deviceName,scopes,verifySsl,session:{accessToken,refreshToken,expiresAt}}}`，expiresAt 是 Unix 秒。verifySsl 缺省视为 false，只有布尔值 true 才启用严格验证；旧 allowInsecureHttp 字段读取时忽略，保存时移除。
+- 密码记录使用 server 顶层 verifySsl 保存相同策略。登录时写入，后续命令复用；业务命令可临时启用严格验证。
 - OAuth 不保存 password、WS token/secret、授权码和 verifier。恢复时复用 endpoint/clientId/deviceId/scopes。
 - 配置目录 0700、文件 0600；原子替换，并在短文件锁内重新读取再更新，防止不同 server 更新丢失。
 - 同一 server 的 OAuth 使用/刷新串行化：获取 server 锁后重新读取记录，持有到命令结束；login/logout 使用相同锁。进程退出或失败释放锁，过期进程锁可回收。
@@ -28,6 +29,7 @@
 - SDK 目前无结构化 OAuth 错误类型。CLI 的 fetch 边界保留 HTTP 状态，并以认证端点拒绝、业务 HTTP 401 区分认证失败；网络/TLS/存储失败仍为 1。
 - 明确的业务失败结果返回非零，raw 仍保留原始业务响应。OAuth 不承诺所有现有端点都已真机验证。
 - 日志扩展 refreshToken、codeVerifier、Authorization Bearer 脱敏。Token 请求也设置超时。
+- undici 6 提供每个会话的 TLS dispatcher；最低 Node 版本为 18.17。登录和执行会话在成功、失败及退出时销毁自己的连接池。
 
 ## 验收
 

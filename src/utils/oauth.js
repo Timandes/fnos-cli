@@ -6,33 +6,44 @@ const { AuthenticationError } = require('./auth-errors');
 const { CommandParameterError } = require('../commands/options');
 const { openBrowser } = require('./browser');
 const { describeOAuthTransportError } = require('./oauth-transport');
+const { Agent } = require('undici');
 
 // oauth4webapi requires Web Crypto, which is not global in all Node 18 invocations.
 if (!globalThis.crypto) globalThis.crypto = webcrypto;
 
 /** Validate the origin before any authorization or storage operation. */
-function validateOAuthEndpoint(endpoint, allowInsecureHttp = false) {
+function validateOAuthEndpoint(endpoint, verifySsl = false) {
   try {
     const url = new URL(endpoint);
     if (url.username || url.password || url.search || url.hash || url.pathname !== '/' ||
-        !(url.protocol === 'https:' || (url.protocol === 'http:' && allowInsecureHttp))) throw new Error();
+        !['http:', 'https:'].includes(url.protocol)) throw new Error();
+    if (url.protocol === 'http:' && verifySsl) {
+      throw new CommandParameterError('--verify-ssl requires an HTTPS endpoint.');
+    }
     return url.origin;
-  } catch {
-    throw new CommandParameterError('OAuth requires an HTTPS origin such as https://nas:5667; HTTP testing requires --allow-insecure-http.');
+  } catch (error) {
+    if (error instanceof CommandParameterError) throw error;
+    throw new CommandParameterError('OAuth requires an HTTP or HTTPS origin such as https://nas:5667.');
   }
 }
 
 /** Preserve SDK retry behavior, but classify rejected token operations and bound their duration. */
-function createOAuthFetch(fetcher = globalThis.fetch) {
-  return async (url, init = {}) => {
+function createOAuthFetch(fetcher = globalThis.fetch, { verifySsl = false } = {}) {
+  const dispatcher = new Agent({ connect: { rejectUnauthorized: verifySsl === true } });
+  const request = async (url, init = {}) => {
     let response;
-    try { response = await fetcher(url, { ...init, signal: init.signal || AbortSignal.timeout(60000) }); }
+    try { response = await fetcher(url, {
+      ...init, signal: init.signal || AbortSignal.timeout(60000),
+      ...(new URL(url).protocol === 'https:' ? { dispatcher } : {})
+    }); }
     catch (error) { throw describeOAuthTransportError(error, url); }
     if (new URL(url).pathname.startsWith('/oauthapi/') && [400, 401, 403].includes(response.status)) {
       throw new AuthenticationError(`OAuth authorization or refresh was rejected (HTTP ${response.status}). Run "fnos login --auth oauth" again.`);
     }
     return response;
   };
+  request.close = () => dispatcher.destroy();
+  return request;
 }
 
 /** Give login validation and later commands the same HTTP failure semantics. */
@@ -99,17 +110,18 @@ function terminalAuthorizationCode(pending, { input = process.stdin, output = pr
 
 /** Authorize with the browser, validate the account and replace credentials only on success. */
 async function loginOAuth(options, dependencies = {}) {
-  const endpoint = validateOAuthEndpoint(options.endpoint, options.allowInsecureHttp === true);
+  const verifySsl = options.verifySsl === true;
+  const endpoint = validateOAuthEndpoint(options.endpoint, verifySsl);
   const input = dependencies.input || process.stdin;
   const output = dependencies.output || process.stderr;
   if (!input.isTTY) throw new AuthenticationError('OAuth login requires an interactive terminal. Authorize interactively first, then reuse the saved server.');
   const store = dependencies.settings || settings;
   const sdkModule = dependencies.sdk || sdk;
-  const fetch = createOAuthFetch(dependencies.fetch);
+  const fetch = createOAuthFetch(dependencies.fetch, { verifySsl });
   const serverName = options.server || 'default';
-  return store.withServerLock(serverName, async () => {
+  try { return await store.withServerLock(serverName, async () => {
     const adapter = new sdkModule.FnosOAuthAdapter({
-      endpoint, deviceName: 'fnos-cli', allowInsecureHttp: options.allowInsecureHttp === true, fetch
+      endpoint, deviceName: 'fnos-cli', allowInsecureHttp: endpoint.startsWith('http:'), fetch
     });
     const pending = await adapter.createAuthorizationRequest();
     output.write(`Open this URL in a browser and authorize within 5 minutes:\n${pending.url}\n`);
@@ -134,12 +146,12 @@ async function loginOAuth(options, dependencies = {}) {
       ...(typeof username === 'string' && username ? { username } : {}),
       oauth: {
         clientId: adapter.clientId, deviceId: adapter.deviceId, deviceName: adapter.deviceName,
-        scopes: [...adapter.scopes], allowInsecureHttp: adapter.allowInsecureHttp, session
+        scopes: [...adapter.scopes], verifySsl, session
       }
     };
     store.saveCredentials(serverName, record);
     return { server: serverName, authType: 'oauth', endpoint, ...(record.username ? { username } : {}) };
-  });
+  }); } finally { await fetch.close(); }
 }
 
 module.exports = { loginOAuth, terminalAuthorizationCode, createOAuthFetch, validateOAuthEndpoint, classifyOAuthClientErrors };

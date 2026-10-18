@@ -62,6 +62,17 @@ function requireClientApi() {
 }
 
 describe('fnos client authentication', () => {
+  it('restores the server certificate policy without requiring the flag again', async () => {
+    const client = new FakeClient();
+    const deps = dependencies(client);
+    await clientUtils.createClientWithCredentials({
+      endpoint: 'wss://host:5667', username: 'admin', password: 'pw',
+      verifySsl: true, source: 'settings_file', serverName: 'strict'
+    }, {}, deps);
+    assert.deepEqual(client.calls[0], ['connect', 'wss://host:5667', 60000, false, false]);
+    assert.equal(deps.saved[0][1].verifySsl, true);
+  });
+
   it('connects with SSL verification and migrates password credentials with a decrypted secret', async () => {
     requireClientApi();
     const client = new FakeClient();
@@ -75,6 +86,7 @@ describe('fnos client authentication', () => {
     assert.equal(client.calls[1][0], 'login');
     assert.deepEqual(deps.saved[0], ['default', {
       endpoint: 'wss://host:5667', username: 'admin', password: 'pw',
+      verifySsl: true,
       credentialVersion: 2, token: 'token', longToken: 'long',
       secret: 'decrypted', secretFormat: 'decrypted-v1'
     }]);

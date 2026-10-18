@@ -15,6 +15,36 @@ function store() {
 afterEach(() => homes.splice(0).forEach(home => fs.rmSync(home, { recursive: true, force: true })));
 
 describe('OAuth credential settings', () => {
+  it('defaults old OAuth records to unverified TLS without rewriting them', () => {
+    const settings = store();
+    const old = oauthRecord();
+    delete old.oauth.verifySsl;
+    old.oauth.allowInsecureHttp = false;
+    settings.save({ servers: { old } });
+    const before = fs.readFileSync(settings.settingsPath, 'utf8');
+    assert.equal(settings.getCredentials('old').oauth.verifySsl, false);
+    assert.equal(fs.readFileSync(settings.settingsPath, 'utf8'), before);
+  });
+
+  it('persists strict verification and preserves it when tokens rotate', () => {
+    const settings = store();
+    settings.saveCredentials('strict', oauthRecord({ verifySsl: true }));
+    const identity = settings.getCredentials('strict');
+    assert.equal(identity.oauth.verifySsl, true);
+    settings.updateOAuthSession('strict', identity, { accessToken: 'next', refreshToken: 'next-refresh', expiresAt: 2100000000 });
+    assert.equal(settings.getCredentials('strict').oauth.verifySsl, true);
+    assert.equal('allowInsecureHttp' in settings.getCredentials('strict').oauth, false);
+  });
+
+  it('allows HTTP without an extra flag and rejects HTTP with strict TLS verification', () => {
+    const settings = store();
+    const record = { ...oauthRecord(), endpoint: 'http://nas:5666' };
+    settings.saveCredentials('http', record);
+    assert.equal(settings.getCredentials('http').oauth.verifySsl, false);
+    assert.throws(() => settings.saveCredentials('bad', { ...record, oauth: { ...record.oauth, verifySsl: true } }), /Invalid/);
+    assert.throws(() => settings.saveCredentials('bad', oauthRecord({ verifySsl: 'true' })), /Invalid/);
+  });
+
   it('round-trips mixed records and omits password material from OAuth', () => {
     const settings = store();
     settings.saveCredentials('old', { endpoint: 'nas:5666', username: 'admin', password: 'pw' });
@@ -42,7 +72,7 @@ describe('OAuth credential settings', () => {
     for (const record of [
       { authType: 'unknown', endpoint: 'nas', username: 'a', password: 'pw' },
       oauthRecord({ deviceId: '' }), oauthRecord({ session: { accessToken: 'x' } }),
-      { ...oauthRecord(), endpoint: 'http://nas' }, oauthRecord({ scopes: [] })
+      { ...oauthRecord(), endpoint: 'http://nas', oauth: { ...oauthRecord().oauth, verifySsl: true } }, oauthRecord({ scopes: [] })
     ]) {
       assert.throws(() => settings.saveCredentials('bad', record), /Invalid|Unsupported/);
     }

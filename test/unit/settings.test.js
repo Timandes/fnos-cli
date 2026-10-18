@@ -27,7 +27,8 @@ describe('credential settings', () => {
       'longToken',
       'secret',
       'credentialVersion',
-      'secretFormat'
+      'secretFormat',
+      'verifySsl'
     ]);
   });
 

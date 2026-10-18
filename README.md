@@ -17,7 +17,7 @@
 
 ## 安装
 
-需要 Node.js 18 或更高版本、npm 8 或更高版本。
+需要 Node.js 18.17 或更高版本、npm 8 或更高版本。
 
 ```bash
 npm install -g fnos-cli
@@ -125,17 +125,18 @@ fnos logout --server home-oauth
 
 首次授权需要交互终端。CLI 在 stderr 显示授权 URL，并提示按回车打开系统默认浏览器；也可以手动打开链接后直接粘贴授权码。用户在浏览器登录、完成两步验证和授权后，将一次性授权码粘贴回终端。浏览器启动失败时会提示手动打开链接，仍可继续输入授权码；再次按回车可重试打开。授权请求 5 分钟内有效；取消或失败会保留该 server 原有凭据。OAuth 登录成功时 stdout 输出不含 token 的结果，`--raw` 输出 JSON。
 
-OAuth endpoint 必须是完整的 HTTPS origin，例如 `https://nas.example.com:5667`，不接受路径、查询参数、URL 内的账号密码或 WS/WSS 地址。HTTPS 默认验证证书；自签名环境应配置受信任的 CA（例如启动 CLI 前设置 `NODE_EXTRA_CA_CERTS`）。OAuth 不使用 `--verify-ssl`，也不能与 `-u`、`-p`、`--twofa-code` 或 `--trust-device` 混用。
+OAuth endpoint 必须是完整的 HTTP 或 HTTPS origin，例如 `https://nas.example.com:5667`，不接受路径、查询参数、URL 内的账号密码或 WS/WSS 地址。HTTPS 默认跳过证书信任链和域名验证，兼容 fnOS 自签名证书；添加 `--verify-ssl` 才严格验证。HTTPS 连接仍然加密，但默认不验证服务端身份。OAuth 不能与 `-u`、`-p`、`--twofa-code` 或 `--trust-device` 混用。
 
-OAuth 请求失败时，CLI 会显示安全处理后的请求地址、底层网络/TLS 错误码及处理建议。`DEPTH_ZERO_SELF_SIGNED_CERT` 表示自签名证书尚未受信任；`ERR_TLS_CERT_ALTNAME_INVALID` 表示证书没有覆盖访问域名。导入 CA 只能解决信任问题，证书的 SAN 仍须包含 endpoint 使用的域名；例如仅覆盖 `fnOS` 的默认证书不能用于 `nas.example.com`。应在 NAS 或 HTTPS 反向代理上配置匹配域名的可信证书。`NODE_EXTRA_CA_CERTS` 要在启动 Node 进程前设置，不能绕过域名验证。
+启用 `--verify-ssl` 后，`DEPTH_ZERO_SELF_SIGNED_CERT` 表示证书尚未受信任，`ERR_TLS_CERT_ALTNAME_INVALID` 表示证书没有覆盖访问域名。可配置匹配域名的可信证书；使用自有 CA 时，须在启动 Node 前设置 `NODE_EXTRA_CA_CERTS`，且证书仍须匹配域名。网络失败会显示安全处理后的请求地址、底层错误码及处理建议。
 
-仅在测试明文 HTTP 服务时显式允许：
+严格验证 HTTPS，或直接使用明文 HTTP：
 
 ```bash
-fnos login --auth oauth --server test -e http://127.0.0.1:5666 --allow-insecure-http
+fnos login --auth oauth --server strict -e https://nas.example.com:5667 --verify-ssl
+fnos login --auth oauth --server test -e http://127.0.0.1:5666
 ```
 
-该 HTTP 策略保存在选定 server 中。后续业务命令只需 `--server`，CLI 根据记录的认证类型选择 WS/WSS 或 OAuth HTTP。access token 已过期或将在 60 秒内到期时，SDK 在请求前刷新；业务 HTTP 401 会触发刷新并最多重试一次。刷新后的 session 保存成功才继续发送请求。刷新失效时需重新运行 OAuth 登录，业务命令不会自动打开授权交互或改用密码登录。
+HTTP 不需要额外参数，和 `--verify-ssl` 同用时报参数冲突。登录时的验证策略保存在所选 server；后续换码、刷新和业务请求统一使用，业务命令也可用 `--verify-ssl` 临时启用严格验证。旧 OAuth 记录缺少该设置时默认不严格验证。access token 已过期或将在 60 秒内到期时，SDK 在请求前刷新；业务 HTTP 401 会触发刷新并最多重试一次。刷新后的 session 保存成功才继续发送请求。刷新失效时需重新运行 OAuth 登录，业务命令不会自动打开授权交互或改用密码登录。
 
 `auth.status` 展示本地记录及 token 到期时间，不联系服务器，也不证明服务端授权仍然有效。`logout` 仅清除本地记录，不撤销服务端授权。
 
@@ -145,7 +146,7 @@ fnos login --auth oauth --server test -e http://127.0.0.1:5666 --allow-insecure-
 
 旧配置缺少 `authType` 时按密码认证读取；旧版顶层单 server 凭据仍按原流程迁移到 `servers.default`。成功的密码登录写回 `authType: "password"`，已有 `credentialVersion: 2` 和 `secretFormat: "decrypted-v1"` 的含义不变。
 
-OAuth 记录使用 `authType: "oauth"`，保存 endpoint、可用账户名，以及 `oauth.clientId`、`deviceId`、`deviceName`、`scopes`、`allowInsecureHttp` 和 `session`。session 包含 accessToken、refreshToken、expiresAt（Unix 秒）。OAuth 不保存密码、WS token/secret、一次性授权码或 PKCE verifier。恢复时复用原 deviceId 和 clientId。
+OAuth 记录使用 `authType: "oauth"`，保存 endpoint、可用账户名，以及 `oauth.clientId`、`deviceId`、`deviceName`、`scopes`、`verifySsl` 和 `session`。session 包含 accessToken、refreshToken、expiresAt（Unix 秒）。旧的 `allowInsecureHttp` 字段读取时忽略，后续保存时移除。密码登录的验证策略保存为该 server 的 `verifySsl`。OAuth 不保存密码、WS token/secret、一次性授权码或 PKCE verifier。恢复时复用原 deviceId 和 clientId。
 
 配置文件继续使用 0600 权限；同一 server 的登录、OAuth 请求和退出登录通过进程锁协调，刷新和其他 server 的写入不会相互覆盖。新版可以读取旧配置；含 OAuth 记录的文件不能交给旧版 CLI 读取。
 

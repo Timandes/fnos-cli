@@ -25,7 +25,7 @@ describe('package metadata', () => {
 
   it('exposes complete npm release metadata', () => {
     assert.equal(pkg.author, 'Timandes White');
-    assert.deepEqual(pkg.engines, { node: '>=18' });
+    assert.deepEqual(pkg.engines, { node: '>=18.17' });
     assert.deepEqual(pkg.repository, {
       type: 'git',
       url: 'git+https://github.com/Timandes/fnos-cli.git'

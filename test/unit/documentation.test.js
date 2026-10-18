@@ -43,7 +43,7 @@ describe('release documentation', () => {
     assert.match(readme, /wss:\/\//);
     assert.match(readme, /npm run test:smoke/);
     assert.match(readme, /fnos.*0\.5\.0/i);
-    assert.match(readme, /Node\.js 18 或更高版本/);
+    assert.match(readme, /Node\.js 18\.17 或更高版本/);
     assert.match(readme, /fnos completion install zsh/);
     assert.match(readme, /eval "\$\(fnos completion zsh\)"/);
     assert.match(readme, /~\/\.fnos\/completions/);

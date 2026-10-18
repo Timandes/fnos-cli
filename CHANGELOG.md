@@ -17,6 +17,9 @@
 
 ### 变更
 
+- OAuth 统一使用 `--verify-ssl`，默认跳过 HTTPS 证书验证，旧 OAuth 记录默认相同；验证策略保存在 server，供后续刷新和业务请求使用
+- 删除 `--allow-insecure-http`，HTTP origin 可直接使用；HTTP 与 `--verify-ssl` 同用时报参数冲突
+- 增加独立 TLS dispatcher，避免修改全局验证策略；最低 Node.js 版本调整为 18.17
 - SDK 依赖升级到 `fnos ^0.5.0`，密码登录仍为默认方式，兼容缺少 authType 的旧配置
 - 业务响应明确失败时返回非零退出码，`--raw` 保留原始响应
 - 补齐 refresh token、PKCE verifier 和 Bearer 授权信息的日志脱敏

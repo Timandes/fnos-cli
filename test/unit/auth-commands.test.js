@@ -21,6 +21,29 @@ function runScript(script) {
 }
 
 describe('authentication commands', () => {
+  it('accepts --verify-ssl for OAuth and passes the selected policy to login', () => {
+    const result = runScript(`
+      const assert = require('node:assert/strict');
+      const { createProgram } = require('./src');
+      const program = createProgram({
+        loginOAuth: async options => { assert.equal(options.verifySsl, true); return { authType: 'oauth' }; },
+        stdout: () => {}
+      });
+      program.parseAsync(['node','fnos','login','--auth','oauth','-e','https://nas.example','--verify-ssl']);
+    `);
+    assert.equal(result.status, 0, result.stderr);
+  });
+
+  it('rejects the removed HTTP flag and does not introduce an insecure flag', () => {
+    for (const flag of ['--allow-insecure-http', '--insecure']) {
+      const result = runScript(`
+        require('./src').createProgram().parseAsync(['node','fnos','login','--auth','oauth','-e','https://nas.example',${JSON.stringify(flag)}]);
+      `);
+      assert.equal(result.status, 1);
+      assert.match(result.stderr, /unknown option/);
+    }
+  });
+
   it('redacts OAuth refresh tokens, PKCE verifiers and Bearer authorization from errors', () => {
     const result = runScript(`
       const { redactSensitive } = require('./src/utils/logger');
@@ -48,9 +71,8 @@ describe('authentication commands', () => {
   it('rejects conflicting login options and incomplete password input before client creation', () => {
     for (const args of [
       ['--auth', 'oauth', '-e', 'https://nas.example', '-u', 'admin'],
-      ['--auth', 'oauth', '-e', 'https://nas.example', '--verify-ssl'],
+      ['--auth', 'oauth', '-e', 'http://nas.example', '--verify-ssl'],
       ['--auth', 'password', '-e', 'nas', '-u', 'admin'],
-      ['-e', 'nas', '-u', 'admin', '-p', 'pw', '--allow-insecure-http'],
       ['--auth', 'unknown', '-e', 'nas']
     ]) {
       const result = runScript(`
