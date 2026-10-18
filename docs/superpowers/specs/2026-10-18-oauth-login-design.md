@@ -33,23 +33,25 @@
 
 ## 验收
 
-离线测试覆盖混合配置、顶层迁移、失败不覆盖、非交互拒绝、过期/取消、session 恢复和刷新、锁竞争/进程退出、存储失败、业务失败和敏感信息。实际发布的 fnos 0.5.0 通过可控 fetch 或本地 HTTP fixture 验证授权及刷新。完整单元套件通过；现有 WS mock 冒烟保持通过；不操作真实 NAS。文档、命令参考、补全与包内容同步。
+离线测试覆盖混合配置、顶层迁移、失败不覆盖、非交互拒绝、过期/取消、session 恢复和刷新、锁竞争/进程退出、存储失败、业务失败和敏感信息。实际发布的 fnos 0.5.0 通过可控 fetch 或本地 HTTP/HTTPS fixture 验证授权及刷新。完整单元套件通过；现有 WS mock 冒烟保持通过；不使用真实授权码或执行真实 NAS 业务请求。文档、命令参考、补全与包内容同步。
 
 ## 实施与验收记录（2026-10-18）
 
 - 分支 `feature/oauth-login`，项目内 `.worktrees/oauth-login`；未合并或发布。
 - 已安装并锁定实际发布的 fnos 0.5.0，声明依赖范围 ^0.5.0。
-- Node 22.23.3：`npm test`，197 passing、0 failing。
-- Node 18.20.8：使用该运行时执行完整 Mocha 单元套件，197 passing、0 failing。
+- Node 22.23.3：`npm test`，226 passing、0 failing。
+- Node 18.20.8：使用该运行时执行完整 Mocha 单元套件，226 passing、0 failing。
 - 固定 fnos-mock-server 提交 d9592a05a8e07082b954921acfae3a9a915f3c01、Python 3.11：5 项冒烟通过，覆盖全部 111 个业务命令、密码登录、token 重用和 2FA。
 - 固定 mock 的 getReservedPartition 本来就返回 result=fail、errno=100060001；现断言退出码 1 且原始响应保留，其余 110 条命令要求退出码 0。
 - npm pack --dry-run 包含 OAuth/session/lock 运行文件，不包含测试文件；git diff --check 通过。
 - 一次独立全分支审查发现两项 Important：遗留回收锁无法恢复、首次 user.info HTTP 错误分类不一致。两项均先以回归测试复现失败，再修复，随后重新运行完整单元和冒烟套件通过。无遗留 Critical/Important/Minor 项。
 - Node 18 基线原有五项 DCS 控制串剥离测试失败；已在 main 复现，并补足最小兼容处理，两种运行时均通过，raw JSON 不变。
+- 证书策略调整另经独立审查，修复密码自动更新将临时 `--verify-ssl` 永久保存的问题；旧顶层凭据与 default 记录比较时将缺省策略视为 false。均先复现失败，再通过回归测试。
+- 本地自签名 HTTPS 服务验证默认模式的授权码兑换、刷新和业务请求，严格模式拒绝同一证书；全局 fetch 证书策略保持不变。NAS-11 无凭据 HEAD 探测在默认模式返回 HTTP 200，严格模式报告 DEPTH_ZERO_SELF_SIGNED_CERT。
 
 ## 保留的边界与取舍
 
 - HTTP 200 的 OAuth 错误 envelope 缺少稳定服务端错误码契约，暂按一般执行失败返回 1；因此部分真实认证拒绝可能尚未细分为 3。
-- 未连接真实 NAS；111 条命令共享 OAuth 传输不等于所有真实网关端点均可用，仍可能因 scope、权限和网关能力被拒绝。
+- 未进行真实 NAS OAuth 登录或业务调用；111 条命令共享 OAuth 传输不等于所有真实网关端点均可用，仍可能因 scope、权限和网关能力被拒绝。
 - 服务端刷新轮换后若磁盘写入失败，停止业务请求并要求修复存储后重新授权；本地无法回滚服务端 token。
 - 继续严格校验整个设置文件。任一记录损坏或 authType 未知时，需先修复该配置，才可使用其他记录。

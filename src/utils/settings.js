@@ -63,7 +63,9 @@ function sortServerNames(names) {
 
 function sameKnownCredentials(left, right) {
   return (left.authType || 'password') === (right.authType || 'password') &&
-    AUTH_FIELDS.every((field) => left[field] === right[field]);
+    AUTH_FIELDS.every((field) => field === 'verifySsl'
+      ? (left[field] === true) === (right[field] === true)
+      : left[field] === right[field]);
 }
 
 function validateCredentialRecord(record, label) {

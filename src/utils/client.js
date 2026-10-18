@@ -113,7 +113,7 @@ async function createClientWithCredentials(credentials, options = {}, dependenci
           endpoint: credentials.endpoint,
           username: credentials.username,
           password: credentials.password,
-          verifySsl,
+          verifySsl: options.saveCredentials ? verifySsl : credentials.verifySsl === true,
           credentialVersion: 2,
           token: result.token || null,
           longToken: result.longToken || null,
