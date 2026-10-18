@@ -145,6 +145,8 @@ fnos security.getProcessTraffic --processes '[{"pid":1001,"process":"demo"}]'
 
 默认输出面向人类阅读：对象数组显示为表格，普通对象显示为分层的字段—值布局。交互终端会根据可用宽度自动换行并使用克制配色；管道、文件重定向、`TERM=dumb` 或设置 `NO_COLOR` 时不会输出 ANSI 色码。
 
+交互终端会在普通命令、登录、退出和帮助信息前显示一次多行 `fnOS CLI` 字符 LOGO，并与正文空一行。终端宽度不足 42 列时改为单行 `fnOS CLI`；`NO_COLOR` 或 `TERM=dumb` 时仍显示无色 LOGO。`--raw`、管道、文件重定向、版本号和补全脚本输出不显示 LOGO。
+
 命令结果写入 stdout，日志写入 stderr。脚本和机器解析应使用 `--raw` 获取原始 JSON：
 
 ```bash

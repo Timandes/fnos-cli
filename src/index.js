@@ -6,6 +6,7 @@ const { registerCompletionCommand } = require('./commands/completion');
 const { registerCommands } = require('./commands');
 const { setLogLevel } = require('./utils/logger');
 const { errorMessage } = require('./utils/errors');
+const { registerBanner } = require('./utils/banner');
 const { version } = require('../package.json');
 
 function createProgram(dependencies = {}) {
@@ -16,6 +17,7 @@ function createProgram(dependencies = {}) {
     .option('-v, --verbose', 'Verbose output (info level)')
     .option('-vv, --debug', 'Debug output (debug level)')
     .option('-vvv, --silly', 'Silly output (silly level)');
+  registerBanner(program, dependencies);
   registerLoginCommand(program, dependencies);
   registerLogoutCommand(program, dependencies);
   registerCompletionCommand(program, dependencies);
