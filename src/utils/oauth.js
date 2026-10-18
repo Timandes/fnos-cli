@@ -4,6 +4,7 @@ const sdk = require('fnos');
 const settings = require('./settings');
 const { AuthenticationError } = require('./auth-errors');
 const { CommandParameterError } = require('../commands/options');
+const { openBrowser } = require('./browser');
 
 // oauth4webapi requires Web Crypto, which is not global in all Node 18 invocations.
 if (!globalThis.crypto) globalThis.crypto = webcrypto;
@@ -50,10 +51,11 @@ function classifyOAuthClientErrors(client, serverName) {
 }
 
 /** Read a one-time code, cancelling on EOF, SIGINT or the PKCE deadline. */
-function terminalAuthorizationCode(pending, { input = process.stdin, output = process.stderr } = {}) {
+function terminalAuthorizationCode(pending, { input = process.stdin, output = process.stderr, openBrowser: launch = openBrowser } = {}) {
   return new Promise((resolve, reject) => {
     const terminal = readline.createInterface({ input, output, terminal: true });
     let done = false;
+    let opening = false;
     const finish = (error, code) => {
       if (done) return;
       done = true;
@@ -67,10 +69,28 @@ function terminalAuthorizationCode(pending, { input = process.stdin, output = pr
     terminal.once('SIGINT', cancel);
     terminal.once('close', cancel);
     process.once('SIGINT', cancel);
-    terminal.question('Authorization code: ', code => {
-      if (!code.trim()) finish(new AuthenticationError('An authorization code is required.'));
-      else finish(null, code.trim());
+    terminal.on('line', code => {
+      if (done) return;
+      if (code.trim()) {
+        finish(null, code.trim());
+        return;
+      }
+      if (opening) return;
+      opening = true;
+      Promise.resolve().then(() => {
+        if (!done) return launch(pending.url);
+      }).catch(() => {
+        if (!done) output.write('Could not open a browser. Open the URL above manually, then paste the authorization code.\n');
+      }).finally(() => {
+        opening = false;
+        if (!done) {
+          terminal.setPrompt('Authorization code (Enter to reopen browser): ');
+          terminal.prompt(true);
+        }
+      });
     });
+    terminal.setPrompt('Press Enter to open the browser, or paste the authorization code: ');
+    terminal.prompt();
   });
 }
 
@@ -91,7 +111,7 @@ async function loginOAuth(options, dependencies = {}) {
     const pending = await adapter.createAuthorizationRequest();
     output.write(`Open this URL in a browser and authorize within 5 minutes:\n${pending.url}\n`);
     let code;
-    try { code = await (dependencies.prompt || terminalAuthorizationCode)(pending, { input, output }); }
+    try { code = await (dependencies.prompt || terminalAuthorizationCode)(pending, { input, output, openBrowser: dependencies.openBrowser }); }
     catch { throw new AuthenticationError('OAuth authorization was cancelled or expired; restart login.'); }
     let session;
     try { session = await adapter.exchangeCode(code, pending); }

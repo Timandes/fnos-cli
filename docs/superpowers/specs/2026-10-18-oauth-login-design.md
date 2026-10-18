@@ -5,7 +5,7 @@
 ## 用户流程
 
 - `fnos login -e <endpoint> -u <username> -p <password>` 保持现有行为。
-- `fnos login --auth oauth --server <name> -e https://<host>:<port>` 创建 PKCE 授权请求，将 URL 和授权码提示写 stderr。用户在浏览器授权后回填授权码。首次授权要求交互终端，业务命令不自动启动授权。
+- `fnos login --auth oauth --server <name> -e https://<host>:<port>` 创建 PKCE 授权请求，将 URL 和授权码提示写 stderr。用户可按回车打开系统默认浏览器，或手动打开链接并直接粘贴授权码；启动失败不终止授权，仍可手动继续或按回车重试。首次授权要求交互终端，业务命令不自动启动授权。
 - OAuth endpoint 必须是 HTTPS origin；测试 HTTP 须显式提供 `--allow-insecure-http` 并保存该策略。禁止默默转换 WS 地址或全局关闭证书验证。
 - 参数错误返回 4，认证失败/取消/过期返回 3，网络、存储和业务失败返回 1。stdout 保留结果，`--raw` 使用 JSON。
 - OAuth 登录验证 `User.getInfo()` 成功后原子替换同名记录；失败保留旧记录。授权码和 verifier 只保留在本次进程中。

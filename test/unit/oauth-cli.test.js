@@ -30,7 +30,7 @@ function run(args, context, { input, tty = false } = {}) {
   child.stdout.on('data', data => { stdout += data; });
   child.stderr.on('data', data => {
     stderr += data;
-    if (input && !answered && stderr.includes('Authorization code:')) { answered = true; child.stdin.end(input + '\n'); }
+    if (input && !answered && /authorization code(?: \([^)]*\))?:/i.test(stderr)) { answered = true; child.stdin.end(input + '\n'); }
   });
   const result = new Promise((resolve, reject) => {
     const timer = setTimeout(() => { child.kill(); reject(new Error('CLI fixture timed out')); }, 5000);

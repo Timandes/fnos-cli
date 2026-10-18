@@ -123,7 +123,7 @@ fnos auth.status --server home-oauth --raw
 fnos logout --server home-oauth
 ```
 
-首次授权需要交互终端。CLI 在 stderr 显示授权 URL，用户在浏览器登录、完成两步验证和授权后，将一次性授权码粘贴回终端。授权请求 5 分钟内有效；取消或失败会保留该 server 原有凭据。OAuth 登录成功时 stdout 输出不含 token 的结果，`--raw` 输出 JSON。
+首次授权需要交互终端。CLI 在 stderr 显示授权 URL，并提示按回车打开系统默认浏览器；也可以手动打开链接后直接粘贴授权码。用户在浏览器登录、完成两步验证和授权后，将一次性授权码粘贴回终端。浏览器启动失败时会提示手动打开链接，仍可继续输入授权码；再次按回车可重试打开。授权请求 5 分钟内有效；取消或失败会保留该 server 原有凭据。OAuth 登录成功时 stdout 输出不含 token 的结果，`--raw` 输出 JSON。
 
 OAuth endpoint 必须是完整的 HTTPS origin，例如 `https://nas.example.com:5667`，不接受路径、查询参数、URL 内的账号密码或 WS/WSS 地址。HTTPS 默认验证证书；自签名环境应配置受信任的 CA（例如启动 CLI 前设置 `NODE_EXTRA_CA_CERTS`）。OAuth 不使用 `--verify-ssl`，也不能与 `-u`、`-p`、`--twofa-code` 或 `--trust-device` 混用。
 
