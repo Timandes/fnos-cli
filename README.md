@@ -8,6 +8,7 @@
 ## 功能
 
 - 提供 21 个业务领域、111 条查询命令
+- 按命令组逐级展示帮助，同时兼容原有点号调用
 - 支持命名多 server、密码登录、token 重用和两步验证
 - 支持 `ws://`、`wss://` 以及可选的严格证书验证
 - 支持原始 JSON 和格式化输出
@@ -74,7 +75,7 @@ fnos completion install zsh
 ```bash
 fnos login -e nas.example.com:5666 -u admin -p password
 fnos login --server office -e office.example.com:5666 -u admin -p password
-fnos sysinfo.getHostName --server office
+fnos sysinfo getHostName --server office
 fnos logout --server office
 ```
 
@@ -92,7 +93,7 @@ server 时自动选择；有多个时在交互终端显示编号列表。在 CI�
 也可为单条业务命令临时提供完整凭证，这些参数不会写入设置：
 
 ```bash
-fnos resmon.cpu -e nas.example.com:5666 -u admin -p password
+fnos resmon cpu -e nas.example.com:5666 -u admin -p password
 ```
 
 `-e`、`-u`、`-p` 必须同时提供，且不能与 `--server` 混用。退出并只清除选中
@@ -120,17 +121,32 @@ fnos login -e wss://nas.example.com:5667 -u admin -p password --twofa-code 12345
 
 fnos-cli 提供 21 个领域、111 条业务命令。完整参数、类型和默认值见 [命令参考](docs/commands.md)。
 
+帮助按命令层级展开：顶层列出命令组及全局参数，命令组列出直接子命令、
+通用认证参数及全局参数，具体命令再展示自己的业务参数。
+
+```bash
+fnos --help
+fnos user --help
+fnos user getPreference --help
+```
+
+直接运行 `fnos` 或 `fnos user` 也会展示对应层级的帮助。通用认证参数可放在
+业务组的子命令之前或之后，例如 `fnos user --server office info` 与
+`fnos user info --server office` 等价。
+
 常用示例：
 
 ```bash
-fnos resmon.systemFan
-fnos docker.listContainers --all true
-fnos backup.listTasks --direction 0
-fnos network.getInfo --if-name eth0
-fnos security.getProcessTraffic --processes '[{"pid":1001,"process":"demo"}]'
+fnos resmon systemFan
+fnos docker listContainers --all true
+fnos backup listTasks --direction 0
+fnos network getInfo --if-name eth0
+fnos security getProcessTraffic --processes '[{"pid":1001,"process":"demo"}]'
 ```
 
-原有 26 条命令名称保持兼容，既有 camelCase 参数也保留为隐藏别名。
+全部原有点号命令（例如 `fnos user.info`）保持兼容，但从顶层帮助和 Tab 补全候选中隐藏。
+既有 camelCase 参数也保留为隐藏别名。升级后重新执行 `fnos completion install zsh`，
+即可启用按层级补全的新命令形式。
 
 ### 全局选项
 
@@ -150,7 +166,7 @@ fnos security.getProcessTraffic --processes '[{"pid":1001,"process":"demo"}]'
 命令结果写入 stdout，日志写入 stderr。脚本和机器解析应使用 `--raw` 获取原始 JSON：
 
 ```bash
-fnos resmon.cpu --raw > result.json 2> fnos.log
+fnos resmon cpu --raw > result.json 2> fnos.log
 ```
 
 ## 配置与日志

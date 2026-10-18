@@ -66,8 +66,10 @@ function renderOptionSpecs(option) {
   const repeat = option.variadic ? '*' : '';
   const description = escapeZshSpecText(option.description);
   const action = optionAction(option);
-  return names.map((name) =>
-    `${repeat}(${exclusion})${name}[${description}]${action}`);
+  return names.map((name) => {
+    const valueSyntax = action ? (name === option.long ? '=' : '+') : '';
+    return `${repeat}(${exclusion})${name}${valueSyntax}[${description}]${action}`;
+  });
 }
 
 function flatten(node) {
@@ -160,13 +162,16 @@ function renderNodeFunction(node) {
   }
   if (children.length > 0) {
     const childPosition = 1;
-    specs.push('*::argument:->fnos_dispatch');
+    specs.push('*:argument:->fnos_dispatch');
     const branches = children.map((child) =>
       '        ' + quoteZsh(child.value) + ') ' +
       child.functionName + ' "$@" ;;'
     ).join('\n');
     cases.push([
       '    fnos_dispatch)',
+      '      (( NORMARG > 0 )) || return 1',
+      '      (( CURRENT -= NORMARG - 1 ))',
+      '      words=( "${(@)words[NORMARG,-1]}" )',
       '      case "${line[' + String(childPosition) + ']}" in',
       branches,
       '      esac',
@@ -177,11 +182,14 @@ function renderNodeFunction(node) {
   const argumentsBlock = specs
     .map((spec) => '    ' + quoteZsh(spec))
     .join(' \\' + '\n');
+  // Stop parent option parsing at the command so child options keep their context.
+  const parserFlags = children.length > 0 ? '-C -n -A "-*"' : '-C';
   const lines = [
     functionName(node.path) + '() {',
     '  local context state state_descr line',
+    '  integer NORMARG',
     '  typeset -A opt_args',
-    '  _arguments -C \\',
+    '  _arguments ' + parserFlags + ' \\',
     argumentsBlock + ' && return 0'
   ];
   if (cases.length > 0) {

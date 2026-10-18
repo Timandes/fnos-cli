@@ -37,7 +37,7 @@
 
 ### 6. 用户体验
 - 为所有命令提供清晰的帮助消息
-- 一致的命令结构（command.subcommand）
+- 一致的层级命令结构（command subcommand），保留 command.subcommand 兼容入口
 - 支持原始 JSON 和格式化输出
 - 详细的日志选项（-v、-vv、-vvv）
 - 自动保存登录凭据以方便使用

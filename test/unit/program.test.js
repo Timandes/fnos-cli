@@ -18,9 +18,16 @@ describe('CLI program', () => {
       assert.equal(typeof entry.createProgram, 'function');
       assert.equal(typeof entry.main, 'function');
       const program = entry.createProgram();
-      assert.equal(program.commands.length, 114);
-      assert.ok(program.commands.some((command) => command.name() === 'docker.listContainers'));
-      assert.ok(program.commands.some((command) => command.name() === 'backup.listTasks'));
+      const groups = program.commands.filter((command) =>
+        command.commands.length && command.name() !== 'completion');
+      assert.equal(groups.length, 21);
+      assert.equal(groups.reduce((count, group) => count + group.commands.length, 0), 111);
+      assert.ok(groups.find((group) => group.name() === 'docker')
+        .commands.some((command) => command.name() === 'listContainers'));
+      assert.ok(groups.find((group) => group.name() === 'backup')
+        .commands.some((command) => command.name() === 'listTasks'));
+      const visible = program.createHelp().visibleCommands(program);
+      assert.equal(visible.some((command) => command.name().includes('.')), false);
       assert.ok(program.commands.some((command) => command.name() === 'completion'));
       assert.equal(program.commands.some((command) => command.name() === '__complete'), false);
       process.stdout.write('PROGRAM_OK');

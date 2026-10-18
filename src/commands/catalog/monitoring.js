@@ -7,6 +7,7 @@ const command = (method, description, options = [], timeoutPosition = 'last') =>
 
 const monitoringCatalog = {
   resmon: {
+    description: 'Resource monitoring',
     className: 'ResourceMonitor',
     commands: {
       cpu: command('cpu', 'Get CPU resource monitoring information', [], 'first'),
@@ -24,12 +25,14 @@ const monitoringCatalog = {
     }
   },
   event: {
+    description: 'Event logs',
     className: 'EventLogger',
     commands: {
       commonList: command('commonList', 'List common event log entries')
     }
   },
   notify: {
+    description: 'Notifications',
     className: 'Notify',
     commands: {
       unreadTotal: command('unreadTotal', 'Get unread notification total')

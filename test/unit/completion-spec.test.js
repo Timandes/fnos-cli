@@ -12,7 +12,7 @@ function findCommand(node, name) {
 describe('completion specification', () => {
   it('includes visible command options, global options, and value metadata', () => {
     const spec = buildCompletionSpec(createProgram());
-    const docker = findCommand(spec, 'docker.listContainers');
+    const docker = findCommand(findCommand(spec, 'docker'), 'listContainers');
     const byLong = Object.fromEntries(docker.options.map((option) => [option.long, option]));
     assert.ok(byLong['--raw']);
     assert.ok(byLong['--help']);
@@ -24,9 +24,21 @@ describe('completion specification', () => {
 
   it('omits hidden legacy spellings', () => {
     const spec = buildCompletionSpec(createProgram());
-    const network = findCommand(spec, 'network.getInfo');
+    const network = findCommand(findCommand(spec, 'network'), 'getInfo');
     assert.equal(network.options.some((option) => option.long === '--ifName'), false);
     assert.equal(network.options.some((option) => option.long === '--if-name'), true);
+  });
+
+  it('completes grouped commands and inherits authentication from their parent', () => {
+    const spec = buildCompletionSpec(createProgram());
+    const user = findCommand(spec, 'user');
+    assert.ok(user);
+    const preference = findCommand(user, 'getPreference');
+    assert.deepEqual(preference.path, ['user', 'getPreference']);
+    assert.ok(preference.options.some((option) => option.long === '--name'));
+    assert.ok(preference.options.some((option) => option.long === '--raw'));
+    assert.deepEqual(preference.options.find((option) => option.long === '--server').completion, { kind: 'server' });
+    assert.equal(findCommand(spec, 'user.getPreference'), undefined);
   });
 
   it('recursively models child commands and annotated arguments', () => {

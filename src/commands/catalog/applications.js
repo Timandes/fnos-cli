@@ -7,6 +7,7 @@ const command = (method, description, options = [], timeoutPosition = 'last') =>
 
 const applicationsCatalog = {
   docker: {
+    description: 'Docker containers, images, and networks',
     className: 'DockerManager',
     commands: {
       listComposes: command('listComposes', 'List Docker Compose projects'),
