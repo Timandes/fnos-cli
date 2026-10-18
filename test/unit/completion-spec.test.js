@@ -10,6 +10,18 @@ function findCommand(node, name) {
 }
 
 describe('completion specification', () => {
+  it('offers authentication types for login and server completion for status', () => {
+    const spec = buildCompletionSpec(createProgram());
+    const login = findCommand(spec, 'login');
+    const auth = login.options.find(option => option.long === '--auth');
+    assert.deepEqual(auth.completion.values, ['password', 'oauth']);
+    assert.ok(login.options.some(option => option.long === '--verify-ssl'));
+    assert.equal(login.options.some(option => ['--allow-insecure-http', '--insecure'].includes(option.long)), false);
+    const status = findCommand(spec, 'auth.status');
+    assert.ok(status);
+    assert.deepEqual(status.options.find(option => option.long === '--server').completion, { kind: 'server' });
+  });
+
   it('includes visible command options, global options, and value metadata', () => {
     const spec = buildCompletionSpec(createProgram());
     const docker = findCommand(findCommand(spec, 'docker'), 'listContainers');

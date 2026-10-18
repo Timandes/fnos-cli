@@ -62,7 +62,18 @@ function requireClientApi() {
 }
 
 describe('fnos client authentication', () => {
-  it('connects with SSL verification and migrates password credentials with a decrypted secret', async () => {
+  it('restores the server certificate policy without requiring the flag again', async () => {
+    const client = new FakeClient();
+    const deps = dependencies(client);
+    await clientUtils.createClientWithCredentials({
+      endpoint: 'wss://host:5667', username: 'admin', password: 'pw',
+      verifySsl: true, source: 'settings_file', serverName: 'strict'
+    }, {}, deps);
+    assert.deepEqual(client.calls[0], ['connect', 'wss://host:5667', 60000, false, false]);
+    assert.equal(deps.saved[0][1].verifySsl, true);
+  });
+
+  it('temporarily verifies SSL while migrating old password credentials with a decrypted secret', async () => {
     requireClientApi();
     const client = new FakeClient();
     const deps = dependencies(client);
@@ -75,10 +86,46 @@ describe('fnos client authentication', () => {
     assert.equal(client.calls[1][0], 'login');
     assert.deepEqual(deps.saved[0], ['default', {
       endpoint: 'wss://host:5667', username: 'admin', password: 'pw',
+      verifySsl: false,
       credentialVersion: 2, token: 'token', longToken: 'long',
       secret: 'decrypted', secretFormat: 'decrypted-v1'
     }]);
   });
+
+  it('persists strict verification when explicitly saving a password login', async () => {
+    const client = new FakeClient();
+    const deps = dependencies(client);
+    await clientUtils.createClientWithCredentials({
+      endpoint: 'wss://host:5667', username: 'admin', password: 'pw', source: 'command_line'
+    }, { verifySsl: true, saveCredentials: true, serverName: 'strict' }, deps);
+    assert.deepEqual(client.calls[0], ['connect', 'wss://host:5667', 60000, false, false]);
+    assert.equal(deps.saved[0][0], 'strict');
+    assert.equal(deps.saved[0][1].verifySsl, true);
+  });
+
+  for (const savedPolicy of [undefined, false]) {
+    for (const validToken of [true, false]) {
+      it(`keeps saved verification ${savedPolicy} unchanged after a temporary override with a ${validToken ? 'valid' : 'rejected'} token`, async () => {
+        const client = new FakeClient();
+        if (!validToken) {
+          client.tokenResult = { result: 'fail', errno: 1, errmsg: 'invalid token', data: {}, reqid: 'token-2' };
+        }
+        const deps = dependencies(client);
+        await clientUtils.createClientWithCredentials({
+          endpoint: 'wss://host:5667', username: 'admin', password: 'pw',
+          ...(savedPolicy === undefined ? {} : { verifySsl: savedPolicy }),
+          source: 'settings_file', serverName: 'home', credentialVersion: 2,
+          token: 'token', longToken: 'long', secret: 'decrypted', secretFormat: 'decrypted-v1'
+        }, { verifySsl: true }, deps);
+        assert.deepEqual(client.calls[0], ['connect', 'wss://host:5667', 60000, false, false]);
+        if (validToken) assert.equal(deps.saved.length, 0);
+        else {
+          assert.equal(deps.saved[0][0], 'home');
+          assert.equal(deps.saved[0][1].verifySsl, false);
+        }
+      });
+    }
+  }
 
   it('uses valid versioned tokens before password login', async () => {
     requireClientApi();

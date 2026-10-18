@@ -3,13 +3,14 @@
  */
 
 const fs = require('node:fs');
-const { randomUUID } = require('node:crypto');
+const { randomUUID, createHash } = require('node:crypto');
 const os = require('node:os');
 const path = require('node:path');
+const { acquireFileLock, acquireFileLockSync } = require('./file-lock');
 
 const AUTH_FIELDS = [
   'endpoint', 'username', 'password', 'token', 'longToken', 'secret',
-  'credentialVersion', 'secretFormat'
+  'credentialVersion', 'secretFormat', 'verifySsl'
 ];
 const REQUIRED_CREDENTIAL_FIELDS = ['endpoint', 'username', 'password'];
 const SERVER_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
@@ -23,8 +24,20 @@ class ConfigurationError extends Error {
 }
 
 function pickCredentials(record) {
+  if (record.authType === 'oauth') {
+    const oauth = record.oauth;
+    return {
+      authType: 'oauth', endpoint: record.endpoint,
+      ...(record.username ? { username: record.username } : {}),
+      oauth: {
+        clientId: oauth.clientId, deviceId: oauth.deviceId, deviceName: oauth.deviceName,
+        scopes: [...oauth.scopes], verifySsl: oauth.verifySsl === true,
+        session: { accessToken: oauth.session.accessToken, refreshToken: oauth.session.refreshToken, expiresAt: oauth.session.expiresAt }
+      }
+    };
+  }
   return Object.fromEntries(
-    AUTH_FIELDS
+    [...AUTH_FIELDS, 'authType']
       .filter((field) => Object.prototype.hasOwnProperty.call(record, field))
       .map((field) => [field, record[field]])
   );
@@ -49,10 +62,37 @@ function sortServerNames(names) {
 }
 
 function sameKnownCredentials(left, right) {
-  return AUTH_FIELDS.every((field) => left[field] === right[field]);
+  return (left.authType || 'password') === (right.authType || 'password') &&
+    AUTH_FIELDS.every((field) => field === 'verifySsl'
+      ? (left[field] === true) === (right[field] === true)
+      : left[field] === right[field]);
 }
 
 function validateCredentialRecord(record, label) {
+  if (record?.verifySsl !== undefined && typeof record.verifySsl !== 'boolean') {
+    throw new ConfigurationError(`Invalid certificate verification policy for server "${label}".`);
+  }
+  if (record?.authType !== undefined && !['password', 'oauth'].includes(record.authType)) {
+    throw new ConfigurationError(`Unsupported authentication type for server "${label}".`);
+  }
+  if (record?.authType === 'oauth') {
+    const oauth = record.oauth;
+    const session = oauth?.session;
+    let validEndpoint = false;
+    try {
+      const url = new URL(record.endpoint);
+      validEndpoint = !url.username && !url.password && !url.search && !url.hash && url.pathname === '/' &&
+        (url.protocol === 'https:' || (url.protocol === 'http:' && oauth?.verifySsl !== true));
+    } catch {}
+    if (!validEndpoint || !isPlainObject(oauth) || (oauth.verifySsl !== undefined && typeof oauth.verifySsl !== 'boolean') ||
+        !['clientId', 'deviceId', 'deviceName'].every(key => typeof oauth[key] === 'string' && oauth[key].trim()) ||
+        !Array.isArray(oauth.scopes) || !oauth.scopes.length || oauth.scopes.some(value => typeof value !== 'string' || !value.trim()) ||
+        !isPlainObject(session) || !['accessToken', 'refreshToken'].every(key => typeof session[key] === 'string' && session[key]) ||
+        !Number.isFinite(session.expiresAt) || session.expiresAt <= 0) {
+      throw new ConfigurationError(`Invalid OAuth credentials for server "${label}".`);
+    }
+    return;
+  }
   if (!isPlainObject(record) ||
       REQUIRED_CREDENTIAL_FIELDS.some((field) =>
     typeof record[field] !== 'string' || record[field].length === 0)) {
@@ -101,7 +141,11 @@ class Settings {
   }
 
   clearCredentials(serverName = 'default') {
-    const data = this._loadCredentialSettings();
+    return this._withSettingsLock(() => this._clearCredentials(serverName));
+  }
+
+  _clearCredentials(serverName) {
+    const data = this._loadCredentialSettings(true);
     if (!Object.prototype.hasOwnProperty.call(data.servers, serverName)) {
       return false;
     }
@@ -115,7 +159,7 @@ class Settings {
     return fs.existsSync(this.settingsPath);
   }
 
-  _loadCredentialSettings() {
+  _loadCredentialSettings(locked = false) {
     const data = this.load() || {};
     if (!isPlainObject(data)) {
       throw new ConfigurationError('Invalid settings structure.');
@@ -133,6 +177,7 @@ class Settings {
     const hasLegacy = AUTH_FIELDS.some((field) =>
       Object.prototype.hasOwnProperty.call(data, field));
     if (!hasLegacy) return { ...data, servers };
+    if (!locked) return this._withSettingsLock(() => this._loadCredentialSettings(true));
     const legacy = pickCredentials(data);
     validateCredentialRecord(legacy, 'default');
     if (data.servers?.default &&
@@ -205,20 +250,50 @@ class Settings {
     if (!isValidServerName(serverName)) {
       throw new ConfigurationError(`Invalid server name: "${serverName}".`);
     }
-    const data = this._loadCredentialSettings();
-    const record = pickCredentials({
-      credentialVersion: 2,
-      secretFormat: 'decrypted-v1',
-      ...credentials
+    validateCredentialRecord(credentials, serverName);
+    const record = pickCredentials(credentials.authType === 'oauth' ? credentials : {
+      credentialVersion: 2, secretFormat: 'decrypted-v1', ...credentials, authType: 'password'
     });
-    validateCredentialRecord(record, serverName);
-    this.save({
-      ...data,
-      servers: {
-        ...data.servers,
-        [serverName]: record
+    return this._withSettingsLock(() => {
+      const data = this._loadCredentialSettings(true);
+      this.save({ ...data, servers: { ...data.servers, [serverName]: record } });
+    });
+  }
+
+  _withSettingsLock(action) {
+    this._ensureDir();
+    const release = acquireFileLockSync(`${this.settingsPath}.lock`);
+    try { return action(); } finally { release(); }
+  }
+
+  /** Save a rotated session only if the target identity still matches. */
+  updateOAuthSession(serverName, identity, session) {
+    return this._withSettingsLock(() => {
+      const data = this._loadCredentialSettings(true);
+      const current = data.servers[serverName];
+      if (current?.authType !== 'oauth' || current.endpoint !== identity.endpoint ||
+          current.oauth.clientId !== identity.oauth.clientId || current.oauth.deviceId !== identity.oauth.deviceId ||
+          current.oauth.session.refreshToken !== identity.oauth.session.refreshToken) {
+        throw new ConfigurationError('OAuth server credentials changed or were removed; run login again.');
       }
+      const record = { ...current, oauth: { ...current.oauth, session } };
+      validateCredentialRecord(record, serverName);
+      this.save({ ...data, servers: { ...data.servers, [serverName]: pickCredentials(record) } });
     });
+  }
+
+  /** Acquire the named server lock before re-reading credentials. */
+  async acquireServerLock(serverName) {
+    if (!isValidServerName(serverName)) throw new ConfigurationError('Invalid server name.');
+    this._ensureDir();
+    const lockName = createHash('sha256').update(serverName).digest('hex');
+    return acquireFileLock(path.join(this.settingsDir, `server-${lockName}.lock`));
+  }
+
+  /** Serialize login, logout and OAuth execution for the same server. */
+  async withServerLock(serverName, action) {
+    const release = await this.acquireServerLock(serverName);
+    try { return await action(); } finally { release(); }
   }
 }
 

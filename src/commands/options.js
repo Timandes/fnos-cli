@@ -149,7 +149,7 @@ function registerAuthenticationOptions(command, requiredCredentials = false) {
   command[add]('-p, --password <password>', 'Password');
   command.option('--twofa-code <code>', 'Six-digit two-factor code');
   command.option('--trust-device', 'Trust this device after two-factor login');
-  command.option('--verify-ssl', 'Verify the WSS server certificate');
+  command.option('--verify-ssl', 'Verify HTTPS/WSS certificates (saved with login; default: disabled)');
   return command;
 }
 

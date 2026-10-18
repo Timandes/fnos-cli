@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 const { Command } = require('commander');
-const { registerLoginCommand, registerLogoutCommand } = require('./commands/auth');
+const { registerLoginCommand, registerLogoutCommand, registerAuthStatusCommand } = require('./commands/auth');
 const { registerCompletionCommand } = require('./commands/completion');
 const { registerCommands } = require('./commands');
 const { setLogLevel } = require('./utils/logger');
@@ -22,6 +22,7 @@ function createProgram(dependencies = {}) {
   registerBanner(program, dependencies);
   registerLoginCommand(program, dependencies);
   registerLogoutCommand(program, dependencies);
+  registerAuthStatusCommand(program, dependencies);
   registerCompletionCommand(program, dependencies);
   registerCommands(program, dependencies);
   program.hook('preAction', (thisCommand) => {

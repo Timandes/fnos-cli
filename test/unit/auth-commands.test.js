@@ -21,6 +21,73 @@ function runScript(script) {
 }
 
 describe('authentication commands', () => {
+  it('accepts --verify-ssl for OAuth and passes the selected policy to login', () => {
+    const result = runScript(`
+      const assert = require('node:assert/strict');
+      const { createProgram } = require('./src');
+      const program = createProgram({
+        loginOAuth: async options => { assert.equal(options.verifySsl, true); return { authType: 'oauth' }; },
+        stdout: () => {}
+      });
+      program.parseAsync(['node','fnos','login','--auth','oauth','-e','https://nas.example','--verify-ssl']);
+    `);
+    assert.equal(result.status, 0, result.stderr);
+  });
+
+  it('rejects the removed HTTP flag and does not introduce an insecure flag', () => {
+    for (const flag of ['--allow-insecure-http', '--insecure']) {
+      const result = runScript(`
+        require('./src').createProgram().parseAsync(['node','fnos','login','--auth','oauth','-e','https://nas.example',${JSON.stringify(flag)}]);
+      `);
+      assert.equal(result.status, 1);
+      assert.match(result.stderr, /unknown option/);
+    }
+  });
+
+  it('redacts OAuth refresh tokens, PKCE verifiers and Bearer authorization from errors', () => {
+    const result = runScript(`
+      const { redactSensitive } = require('./src/utils/logger');
+      process.stdout.write(redactSensitive('refreshToken=REFRESH_SENTINEL refresh_token=REFRESH_SNAKE codeVerifier=VERIFIER_SENTINEL code_verifier=VERIFIER_SNAKE Authorization: Bearer BEARER_SENTINEL'));
+    `);
+    assert.equal(result.status, 0, result.stderr);
+    assert.doesNotMatch(result.stdout, /REFRESH_SENTINEL|REFRESH_SNAKE|VERIFIER_SENTINEL|VERIFIER_SNAKE|BEARER_SENTINEL/);
+  });
+
+  it('selects OAuth explicitly without requiring username or password', () => {
+    const result = runScript(`
+      const assert = require('node:assert/strict');
+      const { createProgram } = require('./src');
+      const program = createProgram({
+        loginOAuth: async options => { assert.equal(options.server, 'oauth'); return { server: 'oauth', authType: 'oauth' }; },
+        createClient: async () => { throw new Error('must not use password'); },
+        stdout: value => process.stdout.write(value)
+      });
+      program.parseAsync(['node','fnos','--raw','login','--auth','oauth','--server','oauth','-e','https://nas.example']);
+    `);
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(JSON.parse(result.stdout), { server: 'oauth', authType: 'oauth' });
+  });
+
+  it('rejects conflicting login options and incomplete password input before client creation', () => {
+    for (const args of [
+      ['--auth', 'oauth', '-e', 'https://nas.example', '-u', 'admin'],
+      ['--auth', 'oauth', '-e', 'http://nas.example', '--verify-ssl'],
+      ['--auth', 'password', '-e', 'nas', '-u', 'admin'],
+      ['--auth', 'unknown', '-e', 'nas']
+    ]) {
+      const result = runScript(`
+        const { createProgram } = require('./src');
+        const program = createProgram({
+          createClient: async () => { process.stdout.write('NETWORK'); },
+          loginOAuth: async () => { process.stdout.write('NETWORK'); }
+        });
+        program.parseAsync(['node','fnos','login', ...${JSON.stringify(args)}]);
+      `);
+      assert.equal(result.status, 4, result.stderr);
+      assert.doesNotMatch(result.stdout, /NETWORK/);
+    }
+  });
+
   it('runs login with injected client creation and closes the client', () => {
     const result = runScript(`
       const assert = require('node:assert/strict');

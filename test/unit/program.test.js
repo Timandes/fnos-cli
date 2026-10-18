@@ -27,7 +27,8 @@ describe('CLI program', () => {
       assert.ok(groups.find((group) => group.name() === 'backup')
         .commands.some((command) => command.name() === 'listTasks'));
       const visible = program.createHelp().visibleCommands(program);
-      assert.equal(visible.some((command) => command.name().includes('.')), false);
+      assert.deepEqual(visible.filter((command) => command.name().includes('.'))
+        .map((command) => command.name()), ['auth.status']);
       assert.ok(program.commands.some((command) => command.name() === 'completion'));
       assert.equal(program.commands.some((command) => command.name() === '__complete'), false);
       process.stdout.write('PROGRAM_OK');

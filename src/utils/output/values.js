@@ -14,7 +14,9 @@ function sanitizeText(value) {
     .replace(/\u0090/g, '\u001bP')
     .replace(/\u009b/g, '\u001b[')
     .replace(/\u009d/g, '\u001b]')
-    .replace(/\u009c/g, '\u001b\\'))
+    .replace(/\u009c/g, '\u001b\\')
+    // Node 18's VT stripper does not consume complete DCS/PM/APC/SOS strings.
+    .replace(/\u001b[P^_X][\s\S]*?(?:\u001b\\|$)/g, ''))
     .replace(/\r\n?/g, '\n')
     .replace(/\t/g, ' ')
     .replace(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/g, '');

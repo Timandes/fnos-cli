@@ -42,8 +42,8 @@ describe('release documentation', () => {
     assert.match(readme, /--twofa-code/);
     assert.match(readme, /wss:\/\//);
     assert.match(readme, /npm run test:smoke/);
-    assert.match(readme, /fnos.*0\.4\.0/i);
-    assert.match(readme, /Node\.js 18 或更高版本/);
+    assert.match(readme, /fnos.*0\.5\.0/i);
+    assert.match(readme, /Node\.js 18\.17 或更高版本/);
     assert.match(readme, /fnos completion install zsh/);
     assert.match(readme, /eval "\$\(fnos completion zsh\)"/);
     assert.match(readme, /~\/\.fnos\/completions/);
@@ -52,6 +52,6 @@ describe('release documentation', () => {
     assert.match(changelog, /## \[0\.4\.0\] - 2026-08-04/);
     assert.match(changelog, /zsh.*Tab.*补全/i);
     assert.doesNotMatch(changelog, /凭证加密保存/);
-    assert.match(constitution, /fnos@0\.4\.0/);
+    assert.match(constitution, /fnos@0\.5\.0/);
   });
 });

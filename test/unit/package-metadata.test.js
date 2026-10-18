@@ -3,8 +3,8 @@ const { describe, it } = require('mocha');
 const pkg = require('../../package.json');
 
 describe('package metadata', () => {
-  it('pins the fnos 0.4 compatible range and exposes test entry points', () => {
-    assert.equal(pkg.dependencies.fnos, '^0.4.0');
+  it('pins the fnos 0.5 compatible range and exposes test entry points', () => {
+    assert.equal(pkg.dependencies.fnos, '^0.5.0');
     assert.equal(pkg.scripts.test, 'npm run test:unit');
     assert.equal(pkg.scripts['test:unit'], 'mocha "test/unit/**/*.test.js"');
     assert.equal(pkg.scripts['test:smoke'], 'mocha --timeout 180000 "test/smoke/**/*.test.js"');
@@ -25,7 +25,7 @@ describe('package metadata', () => {
 
   it('exposes complete npm release metadata', () => {
     assert.equal(pkg.author, 'Timandes White');
-    assert.deepEqual(pkg.engines, { node: '>=18' });
+    assert.deepEqual(pkg.engines, { node: '>=18.17' });
     assert.deepEqual(pkg.repository, {
       type: 'git',
       url: 'git+https://github.com/Timandes/fnos-cli.git'

@@ -27,7 +27,8 @@ describe('credential settings', () => {
       'longToken',
       'secret',
       'credentialVersion',
-      'secretFormat'
+      'secretFormat',
+      'verifySsl'
     ]);
   });
 
@@ -126,6 +127,35 @@ describe('credential settings', () => {
     assert.deepEqual(store.load(), {
       servers: { default: credentials }
     });
+  });
+
+  it('treats a missing certificate policy as false when deduplicating legacy credentials', () => {
+    const credentials = { endpoint: 'home:5666', username: 'admin', password: 'pw' };
+    for (const [legacy, server] of [
+      [credentials, { ...credentials, verifySsl: false }],
+      [{ ...credentials, verifySsl: false }, credentials]
+    ]) {
+      const store = settingsStore();
+      const original = { ...legacy, servers: { default: server } };
+      store.save(original);
+      assert.deepEqual(store.listServerNamesReadOnly(), ['default']);
+      assert.deepEqual(store.load(), original);
+      assert.equal(store.getCredentials().endpoint, 'home:5666');
+      assert.deepEqual(store.load(), { servers: { default: server } });
+    }
+  });
+
+  it('rejects different effective certificate policies in legacy and default credentials', () => {
+    const credentials = { endpoint: 'home:5666', username: 'admin', password: 'pw' };
+    for (const legacyPolicy of [{}, { verifySsl: false }]) {
+      const store = settingsStore();
+      const original = { ...credentials, ...legacyPolicy,
+        servers: { default: { ...credentials, verifySsl: true } } };
+      store.save(original);
+      assert.throws(() => store.listServerNamesReadOnly(), /Conflicting legacy credentials/);
+      assert.throws(() => store.getCredentials(), /Conflicting legacy credentials/);
+      assert.deepEqual(store.load(), original);
+    }
   });
 
   it('lists server names without migrating or modifying settings', () => {

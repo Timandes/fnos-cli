@@ -5,6 +5,7 @@
 const sdk = require('fnos');
 const settings = require('./settings');
 const { logger } = require('./logger');
+const { AuthenticationError } = require('./auth-errors');
 
 const SDK_CLASS_NAMES = [
   'ResourceMonitor', 'Store', 'SystemInfo', 'User', 'Network', 'File', 'SAC',
@@ -12,14 +13,6 @@ const SDK_CLASS_NAMES = [
   'BackupManager', 'DownloadCenter', 'IPBlocker', 'LicenseManager',
   'LiveUpdate', 'MountManager', 'NetworkServer', 'Security', 'SystemRestore'
 ];
-
-class AuthenticationError extends Error {
-  constructor(message) {
-    super(message);
-    this.name = 'AuthenticationError';
-    this.exitCode = 3;
-  }
-}
 
 function canUseToken(credentials) {
   return credentials.credentialVersion === 2 &&
@@ -93,10 +86,11 @@ async function createClientWithCredentials(credentials, options = {}, dependenci
   const Client = sdkModule.FnosClient;
   const client = new Client();
   const timeout = options.timeout ?? 60;
+  const verifySsl = options.verifySsl === true || credentials.verifySsl === true;
 
   try {
     activeLogger.info(`Connecting to ${credentials.endpoint}...`);
-    await client.connect(credentials.endpoint, timeout * 1000, false, options.verifySsl === true ? false : true);
+    await client.connect(credentials.endpoint, timeout * 1000, false, !verifySsl);
     installHostNameResponseCompatibility(client);
     let result;
     let usedToken = false;
@@ -119,6 +113,7 @@ async function createClientWithCredentials(credentials, options = {}, dependenci
           endpoint: credentials.endpoint,
           username: credentials.username,
           password: credentials.password,
+          verifySsl: options.saveCredentials ? verifySsl : credentials.verifySsl === true,
           credentialVersion: 2,
           token: result.token || null,
           longToken: result.longToken || null,

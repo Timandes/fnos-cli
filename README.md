@@ -3,13 +3,13 @@
 [![npm version](https://badge.fury.io/js/fnos-cli.svg)](https://www.npmjs.com/package/fnos-cli)
 ![License](https://img.shields.io/npm/l/fnos-cli)
 
-飞牛 fnOS 系统的命令行客户端，通过 WebSocket/WSS 调用 fnOS API。
+飞牛 fnOS 系统的命令行客户端，通过 WebSocket/WSS 或 OAuth HTTP 网关调用 fnOS API。
 
 ## 功能
 
 - 提供 21 个业务领域、111 条查询命令
 - 按命令组逐级展示帮助，同时兼容原有点号调用
-- 支持命名多 server、密码登录、token 重用和两步验证
+- 支持命名多 server、密码登录、token 重用、两步验证和显式 OAuth 登录
 - 支持 `ws://`、`wss://` 以及可选的严格证书验证
 - 支持原始 JSON 和格式化输出
 - 密码、验证码、token、secret 和签名材料统一日志脱敏
@@ -18,7 +18,7 @@
 
 ## 安装
 
-需要 Node.js 18 或更高版本、npm 8 或更高版本。
+需要 Node.js 18.17 或更高版本、npm 8 或更高版本。
 
 ```bash
 npm install -g fnos-cli
@@ -113,6 +113,44 @@ fnos login -e wss://nas.example.com:5667 -u admin -p password --twofa-code 12345
 
 验证码不会写入设置或日志。若账户尚未绑定两步验证，CLI 会提示先在 fnOS 网页端完成绑定。
 
+### OAuth 登录
+
+密码登录仍是默认方式。使用 `--auth oauth` 显式选择浏览器授权，不需要向 CLI 提供用户名或密码：
+
+```bash
+fnos login --auth oauth --server home-oauth -e https://nas.example.com:5667
+fnos user info --server home-oauth --raw
+fnos auth.status --server home-oauth --raw
+fnos logout --server home-oauth
+```
+
+首次授权需要交互终端。CLI 在 stderr 显示授权 URL，并提示按回车打开系统默认浏览器；也可以手动打开链接后直接粘贴授权码。用户在浏览器登录、完成两步验证和授权后，将一次性授权码粘贴回终端。浏览器启动失败时会提示手动打开链接，仍可继续输入授权码；再次按回车可重试打开。授权请求 5 分钟内有效；取消或失败会保留该 server 原有凭据。OAuth 登录成功时 stdout 输出不含 token 的结果，`--raw` 输出 JSON。
+
+OAuth endpoint 必须是完整的 HTTP 或 HTTPS origin，例如 `https://nas.example.com:5667`，不接受路径、查询参数、URL 内的账号密码或 WS/WSS 地址。HTTPS 默认跳过证书信任链和域名验证，兼容 fnOS 自签名证书；添加 `--verify-ssl` 才严格验证。HTTPS 连接仍然加密，但默认不验证服务端身份。OAuth 不能与 `-u`、`-p`、`--twofa-code` 或 `--trust-device` 混用。
+
+启用 `--verify-ssl` 后，`DEPTH_ZERO_SELF_SIGNED_CERT` 表示证书尚未受信任，`ERR_TLS_CERT_ALTNAME_INVALID` 表示证书没有覆盖访问域名。可配置匹配域名的可信证书；使用自有 CA 时，须在启动 Node 前设置 `NODE_EXTRA_CA_CERTS`，且证书仍须匹配域名。网络失败会显示安全处理后的请求地址、底层错误码及处理建议。
+
+严格验证 HTTPS，或直接使用明文 HTTP：
+
+```bash
+fnos login --auth oauth --server strict -e https://nas.example.com:5667 --verify-ssl
+fnos login --auth oauth --server test -e http://127.0.0.1:5666
+```
+
+HTTP 不需要额外参数，和 `--verify-ssl` 同用时报参数冲突。登录时的验证策略保存在所选 server；后续换码、刷新和业务请求统一使用，业务命令也可用 `--verify-ssl` 临时启用严格验证。旧 OAuth 记录缺少该设置时默认不严格验证。access token 已过期或将在 60 秒内到期时，SDK 在请求前刷新；业务 HTTP 401 会触发刷新并最多重试一次。刷新后的 session 保存成功才继续发送请求。刷新失效时需重新运行 OAuth 登录，业务命令不会自动打开授权交互或改用密码登录。
+
+`auth.status` 展示本地记录及 token 到期时间，不联系服务器，也不证明服务端授权仍然有效。`logout` 仅清除本地记录，不撤销服务端授权。
+
+现有 111 条业务命令均复用 SDK 请求接口，但具体端点是否可用仍受 scope、账户权限和 fnOS 网关支持限制。SDK 的真机验证范围包括授权换码和 `user.info`，不能据此推断全部端点均可用。
+
+### 配置升级兼容
+
+旧配置缺少 `authType` 时按密码认证读取；旧版顶层单 server 凭据仍按原流程迁移到 `servers.default`。成功的密码登录写回 `authType: "password"`，已有 `credentialVersion: 2` 和 `secretFormat: "decrypted-v1"` 的含义不变。
+
+OAuth 记录使用 `authType: "oauth"`，保存 endpoint、可用账户名，以及 `oauth.clientId`、`deviceId`、`deviceName`、`scopes`、`verifySsl` 和 `session`。session 包含 accessToken、refreshToken、expiresAt（Unix 秒）。旧的 `allowInsecureHttp` 字段读取时忽略，后续保存时移除。密码登录的验证策略保存为该 server 的 `verifySsl`。OAuth 不保存密码、WS token/secret、一次性授权码或 PKCE verifier。恢复时复用原 deviceId 和 clientId。
+
+配置文件继续使用 0600 权限；同一 server 的登录、OAuth 请求和退出登录通过进程锁协调，刷新和其他 server 的写入不会相互覆盖。新版可以读取旧配置；含 OAuth 记录的文件不能交给旧版 CLI 读取。
+
 ### WSS
 
 在 endpoint 中直接使用 `wss://`。默认兼容 fnOS 常见的自签名证书；需要严格验证证书时添加 `--verify-ssl`。当 fnOS 把 WS 重定向到 HTTPS 时，错误会同时显示原地址和重定向地址，并提示改用 `wss://`。
@@ -176,6 +214,8 @@ fnos resmon cpu --raw > result.json 2> fnos.log
 
 密码目前以本地设置值保存，并非系统钥匙串或加密保险库。请保护用户主目录权限，不要共享设置文件。
 
+OAuth token 同样是本地设置中的敏感值。认证/授权失效返回退出码 `3`，参数错误返回 `4`，网络、TLS、存储或业务执行失败返回 `1`。业务响应明确失败时，即使 HTTP 为 200 也返回非零；`--raw` 仍保留该原始业务响应。
+
 ## 开发
 
 ### 运行测试
@@ -214,7 +254,7 @@ fnos-cli/
 
 ## 依赖项
 
-- [fnos](https://www.npmjs.com/package/fnos) @ 0.4.0
+- [fnos](https://www.npmjs.com/package/fnos) @ 0.5.0
 - [Commander.js](https://www.npmjs.com/package/commander) @ 11.1.0
 - [Winston](https://www.npmjs.com/package/winston) @ 3.19.0
 

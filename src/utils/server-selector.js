@@ -57,7 +57,7 @@ async function selectServer(servers, dependencies = {}) {
     output.write(
       `  ${index + 1}) ${server.name}  ` +
       `${escapeTerminalValue(server.endpoint)}  ` +
-      `(${escapeTerminalValue(server.username)})\n`
+      `(${escapeTerminalValue(server.username || 'OAuth')})\n`
     );
   });
 
