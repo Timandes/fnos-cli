@@ -13,9 +13,20 @@ function renderCommandReference() {
     '',
     `fnos-cli exposes ${COMMAND_COUNT} commands across ${DOMAIN_COUNT} domains.`,
     '',
+    '## Help and Command Syntax',
+    '',
+    'Use `fnos --help` to list command groups, `fnos user --help` to list user commands, ' +
+      'and `fnos user getPreference --help` to inspect command-specific options.',
+    'Each level includes its available global options. Business groups and commands also show authentication options.',
+    '',
+    'Business commands use `fnos <domain> <command> [options]`. ' +
+      'Existing dotted calls such as `fnos user.info` remain supported but are hidden from top-level help and completion.',
+    '',
     '## Shared Authentication Options',
     '',
     'Every business command accepts these authentication options.',
+    'They can appear before or after the subcommand, for example ' +
+      '`fnos user --server office info` or `fnos user info --server office`.',
     '',
     '| Option | Description |',
     '|---|---|',
@@ -32,9 +43,9 @@ function renderCommandReference() {
     ''
   ];
   for (const [domainName, domain] of Object.entries(COMMAND_CATALOG)) {
-    lines.push(`## ${domainName}`, '');
+    lines.push(`## ${domainName}`, '', domain.description, '');
     for (const [commandName, definition] of Object.entries(domain.commands)) {
-      lines.push(`### \`${domainName}.${commandName}\``, '', definition.description, '');
+      lines.push(`### \`${domainName} ${commandName}\``, '', definition.description, '');
       if (definition.options.length === 0) {
         lines.push('No business options.', '');
       } else {

@@ -7,6 +7,7 @@ const command = (method, description, options = [], timeoutPosition = 'last') =>
 
 const storageCatalog = {
   store: {
+    description: 'Storage and disks',
     className: 'Store',
     commands: {
       general: command('general', 'Get storage general information'),
@@ -43,6 +44,7 @@ const storageCatalog = {
     }
   },
   file: {
+    description: 'Files and directories',
     className: 'File',
     commands: {
       ls: command('list', 'List files and directories', [
@@ -77,6 +79,7 @@ const storageCatalog = {
     }
   },
   backup: {
+    description: 'Backup tasks',
     className: 'BackupManager',
     commands: {
       listTasks: command('listTasks', 'List backup tasks', [
@@ -85,6 +88,7 @@ const storageCatalog = {
     }
   },
   download: {
+    description: 'Download tasks and settings',
     className: 'DownloadCenter',
     commands: {
       getDefaultSaveDirectory: command('getDefaultSaveDirectory', 'Get the default download directory'),
@@ -96,6 +100,7 @@ const storageCatalog = {
     }
   },
   mount: {
+    description: 'Mounted resources',
     className: 'MountManager',
     commands: {
       listMounts: command('listMounts', 'List mounted resources'),

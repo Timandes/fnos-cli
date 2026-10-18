@@ -7,6 +7,7 @@ const command = (method, description, options = [], timeoutPosition = 'last') =>
 
 const networkSharingCatalog = {
   network: {
+    description: 'Network interfaces and settings',
     className: 'Network',
     commands: {
       list: command('list', 'List network information', [
@@ -25,6 +26,7 @@ const networkSharingCatalog = {
     }
   },
   share: {
+    description: 'Sharing services and links',
     className: 'Share',
     commands: {
       smbOpt: command('smbOpt', 'Get SMB options'),
@@ -51,6 +53,7 @@ const networkSharingCatalog = {
     }
   },
   iscsi: {
+    description: 'iSCSI configuration',
     className: 'IscsiManager',
     commands: {
       getConfig: command('getConfig', 'Get iSCSI configuration'),
@@ -64,6 +67,7 @@ const networkSharingCatalog = {
     }
   },
   netsvr: {
+    description: 'Server connections, certificates, and DDNS',
     className: 'NetworkServer',
     commands: {
       listCertificates: command('listCertificates', 'List server certificates'),

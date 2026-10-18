@@ -31,8 +31,8 @@ describe('release documentation', () => {
     assert.match(actual, /111 commands across 21 domains/);
     assert.match(actual, /-s, --server <name>/);
     assert.match(actual, /Saved server name/);
-    assert.match(actual, /`docker\.listContainers`/);
-    assert.match(actual, /`security\.getProcessTraffic`/);
+    assert.match(actual, /`docker listContainers`/);
+    assert.match(actual, /`security getProcessTraffic`/);
   });
 
   it('documents authentication, smoke testing, and the SDK version', () => {

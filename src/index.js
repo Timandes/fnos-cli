@@ -11,6 +11,8 @@ const { version } = require('../package.json');
 function createProgram(dependencies = {}) {
   const program = new Command();
   program.name('fnos').description('CLI client for 飞牛 fnOS system').version(version);
+  program.configureHelp({ showGlobalOptions: true });
+  program.addHelpText('after', '\nRun "fnos <command> --help" for command details.');
   program
     .option('--raw', 'Output raw JSON response')
     .option('-v, --verbose', 'Verbose output (info level)')

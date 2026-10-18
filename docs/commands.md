@@ -2,9 +2,17 @@
 
 fnos-cli exposes 111 commands across 21 domains.
 
+## Help and Command Syntax
+
+Use `fnos --help` to list command groups, `fnos user --help` to list user commands, and `fnos user getPreference --help` to inspect command-specific options.
+Each level includes its available global options. Business groups and commands also show authentication options.
+
+Business commands use `fnos <domain> <command> [options]`. Existing dotted calls such as `fnos user.info` remain supported but are hidden from top-level help and completion.
+
 ## Shared Authentication Options
 
 Every business command accepts these authentication options.
+They can appear before or after the subcommand, for example `fnos user --server office info` or `fnos user info --server office`.
 
 | Option | Description |
 |---|---|
@@ -20,37 +28,39 @@ Every business command accepts these authentication options.
 
 ## resmon
 
-### `resmon.cpu`
+Resource monitoring
+
+### `resmon cpu`
 
 Get CPU resource monitoring information
 
 No business options.
 
-### `resmon.gpu`
+### `resmon gpu`
 
 Get GPU resource monitoring information
 
 No business options.
 
-### `resmon.mem`
+### `resmon mem`
 
 Get memory resource monitoring information
 
 No business options.
 
-### `resmon.disk`
+### `resmon disk`
 
 Get disk resource monitoring information
 
 No business options.
 
-### `resmon.net`
+### `resmon net`
 
 Get network resource monitoring information
 
 No business options.
 
-### `resmon.gen`
+### `resmon gen`
 
 Get general resource monitoring information
 
@@ -58,25 +68,25 @@ Get general resource monitoring information
 |---|---:|---|---|
 | `--items <items>` | no | csv | Comma-separated monitoring items. Default: `null`. |
 
-### `resmon.npu`
+### `resmon npu`
 
 Get NPU resource monitoring information
 
 No business options.
 
-### `resmon.processes`
+### `resmon processes`
 
 List monitored processes
 
 No business options.
 
-### `resmon.serviceProcesses`
+### `resmon serviceProcesses`
 
 List monitored service processes
 
 No business options.
 
-### `resmon.systemFan`
+### `resmon systemFan`
 
 Get system fan monitoring information
 
@@ -84,7 +94,9 @@ No business options.
 
 ## event
 
-### `event.commonList`
+Event logs
+
+### `event commonList`
 
 List common event log entries
 
@@ -92,7 +104,9 @@ No business options.
 
 ## notify
 
-### `notify.unreadTotal`
+Notifications
+
+### `notify unreadTotal`
 
 Get unread notification total
 
@@ -100,19 +114,21 @@ No business options.
 
 ## store
 
-### `store.general`
+Storage and disks
+
+### `store general`
 
 Get storage general information
 
 No business options.
 
-### `store.calcSpace`
+### `store calcSpace`
 
 Calculate storage space information
 
 No business options.
 
-### `store.listDisk`
+### `store listDisk`
 
 List disk information
 
@@ -120,7 +136,7 @@ List disk information
 |---|---:|---|---|
 | `--no-hot-spare <boolean>` | no | boolean | Exclude hot spare disks. Default: `true`. |
 
-### `store.diskSmart`
+### `store diskSmart`
 
 Get disk SMART information
 
@@ -128,7 +144,7 @@ Get disk SMART information
 |---|---:|---|---|
 | `--disk <disk>` | yes | string | Disk device name. |
 
-### `store.state`
+### `store state`
 
 Get storage state information
 
@@ -137,7 +153,7 @@ Get storage state information
 | `--name <names>` | no | csv | Comma-separated array names. Default: `[]`. |
 | `--uuid <uuids>` | no | csv | Comma-separated array UUIDs. Default: `[]`. |
 
-### `store.getUserStorage`
+### `store getUserStorage`
 
 Get user storage information
 
@@ -147,37 +163,37 @@ Get user storage information
 | `--stor-info <boolean>` | no | boolean | Include storage information. Default: `false`. |
 | `--quota-info <boolean>` | no | boolean | Include quota information. Default: `false`. |
 
-### `store.getCacheDeviceState`
+### `store getCacheDeviceState`
 
 Get cache device state
 
 No business options.
 
-### `store.getDiskIdleTime`
+### `store getDiskIdleTime`
 
 Get disk idle time
 
 No business options.
 
-### `store.getDiskWakeup`
+### `store getDiskWakeup`
 
 Get disk wake-up state
 
 No business options.
 
-### `store.getRemovableConfig`
+### `store getRemovableConfig`
 
 Get removable device configuration
 
 No business options.
 
-### `store.listCacheDevices`
+### `store listCacheDevices`
 
 List cache devices
 
 No business options.
 
-### `store.listRemovableDevices`
+### `store listRemovableDevices`
 
 List removable devices
 
@@ -185,7 +201,9 @@ No business options.
 
 ## file
 
-### `file.ls`
+Files and directories
+
+### `file ls`
 
 List files and directories
 
@@ -193,7 +211,7 @@ List files and directories
 |---|---:|---|---|
 | `--path <path>` | no | string | Directory path. Default: `null`. |
 
-### `file.mkdir`
+### `file mkdir`
 
 Create a directory
 
@@ -201,7 +219,7 @@ Create a directory
 |---|---:|---|---|
 | `--path <path>` | yes | string | Directory path. |
 
-### `file.rm`
+### `file rm`
 
 Remove files or directories
 
@@ -211,7 +229,7 @@ Remove files or directories
 | `--move-to-trashbin <boolean>` | no | boolean | Move removed files to trash. Default: `true`. |
 | `--details <json>` | no | json | File detail object as JSON. Default: `null`. |
 
-### `file.getAcl`
+### `file getAcl`
 
 Get file ACL information
 
@@ -219,49 +237,49 @@ Get file ACL information
 |---|---:|---|---|
 | `--files <files>` | yes | csv | Comma-separated vol-prefixed paths. |
 
-### `file.listAppDirectories`
+### `file listAppDirectories`
 
 List application directories
 
 No business options.
 
-### `file.listFavorites`
+### `file listFavorites`
 
 List favorite files
 
 No business options.
 
-### `file.listDirectoryEntries`
+### `file listDirectoryEntries`
 
 List directory entries
 
 No business options.
 
-### `file.listRecent`
+### `file listRecent`
 
 List recent files
 
 No business options.
 
-### `file.listShared`
+### `file listShared`
 
 List shared files
 
 No business options.
 
-### `file.listSharedByOthers`
+### `file listSharedByOthers`
 
 List files shared by others
 
 No business options.
 
-### `file.listTeamTrashBins`
+### `file listTeamTrashBins`
 
 List team trash bins
 
 No business options.
 
-### `file.listTrash`
+### `file listTrash`
 
 List trash entries
 
@@ -269,7 +287,9 @@ No business options.
 
 ## backup
 
-### `backup.listTasks`
+Backup tasks
+
+### `backup listTasks`
 
 List backup tasks
 
@@ -279,19 +299,21 @@ List backup tasks
 
 ## download
 
-### `download.getDefaultSaveDirectory`
+Download tasks and settings
+
+### `download getDefaultSaveDirectory`
 
 Get the default download directory
 
 No business options.
 
-### `download.getStatistics`
+### `download getStatistics`
 
 Get download statistics
 
 No business options.
 
-### `download.queryTasks`
+### `download queryTasks`
 
 Query download tasks
 
@@ -302,13 +324,15 @@ Query download tasks
 
 ## mount
 
-### `mount.listMounts`
+Mounted resources
+
+### `mount listMounts`
 
 List mounted resources
 
 No business options.
 
-### `mount.getSettings`
+### `mount getSettings`
 
 Get mount settings
 
@@ -316,37 +340,39 @@ No business options.
 
 ## sysinfo
 
-### `sysinfo.getHostName`
+System information
+
+### `sysinfo getHostName`
 
 Get host name information
 
 No business options.
 
-### `sysinfo.getTrimVersion`
+### `sysinfo getTrimVersion`
 
 Get Trim version information
 
 No business options.
 
-### `sysinfo.getMachineId`
+### `sysinfo getMachineId`
 
 Get machine ID information
 
 No business options.
 
-### `sysinfo.getHardwareInfo`
+### `sysinfo getHardwareInfo`
 
 Get hardware information
 
 No business options.
 
-### `sysinfo.getUptime`
+### `sysinfo getUptime`
 
 Get system uptime information
 
 No business options.
 
-### `sysinfo.getReservedPartition`
+### `sysinfo getReservedPartition`
 
 Get reserved partition information
 
@@ -354,19 +380,21 @@ No business options.
 
 ## sac
 
-### `sac.upsStatus`
+UPS and email notifications
+
+### `sac upsStatus`
 
 Get UPS status information
 
 No business options.
 
-### `sac.getEmailConfig`
+### `sac getEmailConfig`
 
 Get email notification configuration
 
 No business options.
 
-### `sac.listEmailProviders`
+### `sac listEmailProviders`
 
 List email notification providers
 
@@ -374,7 +402,9 @@ No business options.
 
 ## license
 
-### `license.list`
+Software licenses
+
+### `license list`
 
 List installed software licenses
 
@@ -385,7 +415,9 @@ List installed software licenses
 
 ## liveupdate
 
-### `liveupdate.getStatus`
+System updates
+
+### `liveupdate getStatus`
 
 Get live update status
 
@@ -393,7 +425,9 @@ No business options.
 
 ## sysrestore
 
-### `sysrestore.getInfo`
+System restore
+
+### `sysrestore getInfo`
 
 Get system restore information
 
@@ -401,49 +435,51 @@ No business options.
 
 ## user
 
-### `user.info`
+User information, groups, and authentication
+
+### `user info`
 
 Get user information
 
 No business options.
 
-### `user.listUG`
+### `user listUG`
 
 List users and groups
 
 No business options.
 
-### `user.groupUsers`
+### `user groupUsers`
 
 Get user grouping information
 
 No business options.
 
-### `user.isAdmin`
+### `user isAdmin`
 
 Check whether the current user is an administrator
 
 No business options.
 
-### `user.listTokens`
+### `user listTokens`
 
 List authentication tokens
 
 No business options.
 
-### `user.getMyTwofaConfig`
+### `user getMyTwofaConfig`
 
 Get current user two-factor configuration
 
 No business options.
 
-### `user.getGlobalTwofaConfig`
+### `user getGlobalTwofaConfig`
 
 Get global two-factor configuration
 
 No business options.
 
-### `user.getUserTwofaConfig`
+### `user getUserTwofaConfig`
 
 Get a user two-factor configuration
 
@@ -451,13 +487,13 @@ Get a user two-factor configuration
 |---|---:|---|---|
 | `--uid <integer>` | yes | integer | User ID. |
 
-### `user.getActiveState`
+### `user getActiveState`
 
 Get current user active state
 
 No business options.
 
-### `user.getGroupInfo`
+### `user getGroupInfo`
 
 Get group information
 
@@ -465,19 +501,19 @@ Get group information
 |---|---:|---|---|
 | `--group <group>` | yes | string | Group name. |
 
-### `user.listGroups`
+### `user listGroups`
 
 List groups
 
 No business options.
 
-### `user.listLoginDevices`
+### `user listLoginDevices`
 
 List login devices
 
 No business options.
 
-### `user.getPreference`
+### `user getPreference`
 
 Get a user preference
 
@@ -487,19 +523,21 @@ Get a user preference
 
 ## ipblock
 
-### `ipblock.listAllowedAddresses`
+IP access rules
+
+### `ipblock listAllowedAddresses`
 
 List allowed IP addresses
 
 No business options.
 
-### `ipblock.getAutoBlockRule`
+### `ipblock getAutoBlockRule`
 
 Get automatic IP blocking rule
 
 No business options.
 
-### `ipblock.listDeniedAddresses`
+### `ipblock listDeniedAddresses`
 
 List denied IP addresses
 
@@ -507,13 +545,15 @@ No business options.
 
 ## security
 
-### `security.getFirewall`
+Firewall and process traffic
+
+### `security getFirewall`
 
 Get firewall configuration
 
 No business options.
 
-### `security.getProcessTraffic`
+### `security getProcessTraffic`
 
 Get process traffic data
 
@@ -523,7 +563,9 @@ Get process traffic data
 
 ## network
 
-### `network.list`
+Network interfaces and settings
+
+### `network list`
 
 List network information
 
@@ -531,7 +573,7 @@ List network information
 |---|---:|---|---|
 | `--type <integer>` | no | integer | Network list type: 0 or 1. Default: `0`. |
 
-### `network.detect`
+### `network detect`
 
 Detect a network interface
 
@@ -539,25 +581,25 @@ Detect a network interface
 |---|---:|---|---|
 | `--if-name <name>` | yes | string | Network interface name. |
 
-### `network.getGateway`
+### `network getGateway`
 
 Get gateway information
 
 No business options.
 
-### `network.getMultiGatewayStatus`
+### `network getMultiGatewayStatus`
 
 Get multi-gateway status
 
 No business options.
 
-### `network.getNicPerformanceMode`
+### `network getNicPerformanceMode`
 
 Get NIC performance mode
 
 No business options.
 
-### `network.getInfo`
+### `network getInfo`
 
 Get network interface information
 
@@ -565,7 +607,7 @@ Get network interface information
 |---|---:|---|---|
 | `--if-name <name>` | yes | string | Network interface name. |
 
-### `network.getSshStatus`
+### `network getSshStatus`
 
 Get SSH service status
 
@@ -573,79 +615,81 @@ No business options.
 
 ## share
 
-### `share.smbOpt`
+Sharing services and links
+
+### `share smbOpt`
 
 Get SMB options
 
 No business options.
 
-### `share.dlnaOptions`
+### `share dlnaOptions`
 
 Get DLNA options
 
 No business options.
 
-### `share.dlnaShareOptions`
+### `share dlnaShareOptions`
 
 Get DLNA share options
 
 No business options.
 
-### `share.ftpOptions`
+### `share ftpOptions`
 
 Get FTP options
 
 No business options.
 
-### `share.ftpShareOptions`
+### `share ftpShareOptions`
 
 Get FTP share options
 
 No business options.
 
-### `share.nfsOptions`
+### `share nfsOptions`
 
 Get NFS options
 
 No business options.
 
-### `share.nfsShareOptions`
+### `share nfsShareOptions`
 
 Get NFS share options
 
 No business options.
 
-### `share.smbShareOptions`
+### `share smbShareOptions`
 
 Get SMB share options
 
 No business options.
 
-### `share.webdavOptions`
+### `share webdavOptions`
 
 Get WebDAV options
 
 No business options.
 
-### `share.webdavShareOptions`
+### `share webdavShareOptions`
 
 Get WebDAV share options
 
 No business options.
 
-### `share.getLinkDefaults`
+### `share getLinkDefaults`
 
 Get share link defaults
 
 No business options.
 
-### `share.getDefaultLink`
+### `share getDefaultLink`
 
 Get the default share link
 
 No business options.
 
-### `share.listLinks`
+### `share listLinks`
 
 List share links
 
@@ -658,7 +702,7 @@ List share links
 | `--sort-column <column>` | no | string | Sort column. Default: `"createdTime"`. |
 | `--sort-type <type>` | no | string | Sort direction. Default: `"DESC"`. |
 
-### `share.getLinkPermission`
+### `share getLinkPermission`
 
 Get share link permission
 
@@ -666,25 +710,27 @@ No business options.
 
 ## iscsi
 
-### `iscsi.getConfig`
+iSCSI configuration
+
+### `iscsi getConfig`
 
 Get iSCSI configuration
 
 No business options.
 
-### `iscsi.listInitiators`
+### `iscsi listInitiators`
 
 List iSCSI initiators
 
 No business options.
 
-### `iscsi.listLuns`
+### `iscsi listLuns`
 
 List iSCSI LUNs
 
 No business options.
 
-### `iscsi.listLunUsergroups`
+### `iscsi listLunUsergroups`
 
 List iSCSI LUN user groups
 
@@ -693,7 +739,7 @@ List iSCSI LUN user groups
 | `--lun-name <name>` | no | string | LUN name filter. Default: `""`. |
 | `--wwn <wwn>` | no | string | WWN filter. Default: `""`. |
 
-### `iscsi.listTargets`
+### `iscsi listTargets`
 
 List iSCSI targets
 
@@ -701,31 +747,33 @@ No business options.
 
 ## netsvr
 
-### `netsvr.listCertificates`
+Server connections, certificates, and DDNS
+
+### `netsvr listCertificates`
 
 List server certificates
 
 No business options.
 
-### `netsvr.getConnectionConfig`
+### `netsvr getConnectionConfig`
 
 Get connection configuration
 
 No business options.
 
-### `netsvr.getConnectionStatus`
+### `netsvr getConnectionStatus`
 
 Get connection status
 
 No business options.
 
-### `netsvr.listDdnsProviders`
+### `netsvr listDdnsProviders`
 
 List DDNS providers
 
 No business options.
 
-### `netsvr.listDdnsRecords`
+### `netsvr listDdnsRecords`
 
 List DDNS records
 
@@ -736,13 +784,15 @@ List DDNS records
 
 ## docker
 
-### `docker.listComposes`
+Docker containers, images, and networks
+
+### `docker listComposes`
 
 List Docker Compose projects
 
 No business options.
 
-### `docker.listContainers`
+### `docker listContainers`
 
 List Docker containers
 
@@ -750,37 +800,37 @@ List Docker containers
 |---|---:|---|---|
 | `--all <boolean>` | no | boolean | Include stopped containers. Default: `true`. |
 
-### `docker.stats`
+### `docker stats`
 
 Get Docker container statistics
 
 No business options.
 
-### `docker.getSystemSettings`
+### `docker getSystemSettings`
 
 Get Docker system settings
 
 No business options.
 
-### `docker.listImageDownloads`
+### `docker listImageDownloads`
 
 List Docker image downloads
 
 No business options.
 
-### `docker.listImages`
+### `docker listImages`
 
 List Docker images
 
 No business options.
 
-### `docker.listNetworks`
+### `docker listNetworks`
 
 List Docker networks
 
 No business options.
 
-### `docker.listRegistryRepositories`
+### `docker listRegistryRepositories`
 
 List Docker registry repositories
 

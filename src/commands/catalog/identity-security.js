@@ -7,6 +7,7 @@ const command = (method, description, options = [], timeoutPosition = 'last') =>
 
 const identitySecurityCatalog = {
   user: {
+    description: 'User information, groups, and authentication',
     className: 'User',
     commands: {
       info: command('getInfo', 'Get user information'),
@@ -31,6 +32,7 @@ const identitySecurityCatalog = {
     }
   },
   ipblock: {
+    description: 'IP access rules',
     className: 'IPBlocker',
     commands: {
       listAllowedAddresses: command('listAllowedAddresses', 'List allowed IP addresses'),
@@ -39,6 +41,7 @@ const identitySecurityCatalog = {
     }
   },
   security: {
+    description: 'Firewall and process traffic',
     className: 'Security',
     commands: {
       getFirewall: command('getFirewall', 'Get firewall configuration'),

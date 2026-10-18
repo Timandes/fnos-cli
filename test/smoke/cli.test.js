@@ -20,8 +20,9 @@ const requiredValues = {
   uid: '1000', group: 'users', name: 'theme'
 };
 
-function commandArgs(domainName, commandName, definition) {
-  const args = ['--raw', `${domainName}.${commandName}`, '-e', '127.0.0.1:5666', '-u', 'admin', '-p', 'admin'];
+function commandArgs(domainName, commandName, definition, dotted) {
+  const command = dotted ? [`${domainName}.${commandName}`] : [domainName, commandName];
+  const args = ['--raw', ...command, '-e', '127.0.0.1:5666', '-u', 'admin', '-p', 'admin'];
   for (const option of definition.options.filter((item) => item.required)) {
     args.push(option.flag.split(' ')[0], requiredValues[option.name]);
   }
@@ -54,7 +55,7 @@ describe('fnos CLI smoke tests', function () {
     data.theme = 'dark';
     data.servers.default.password = 'wrong-password-to-prove-token-reuse';
     fs.writeFileSync(settingsPath, JSON.stringify(data, null, 2), { mode: 0o600 });
-    const query = runCli(['--raw', 'sysinfo.getHostName'], testHome);
+    const query = runCli(['--raw', 'sysinfo', 'getHostName'], testHome);
     assert.equal(query.status, 0, query.stderr || query.error?.message);
     assert.equal(JSON.parse(query.stdout).result, 'succ');
     const logout = runCli(['logout'], testHome);
@@ -86,7 +87,7 @@ describe('fnos CLI smoke tests', function () {
 
     const query = runCli([
       '--raw',
-      'sysinfo.getHostName',
+      'sysinfo', 'getHostName',
       '--server', 'office'
     ], testHome);
     assert.equal(query.status, 0, query.stderr || query.error?.message);
@@ -110,22 +111,24 @@ describe('fnos CLI smoke tests', function () {
     assert.equal(result.status, 0, result.stderr || result.error?.message);
   });
 
-  it('routes all 111 business commands', () => {
-    assert.equal(COMMAND_COUNT, 111);
-    const testHome = home();
-    for (const [domainName, domain] of Object.entries(COMMAND_CATALOG)) {
-      for (const [commandName, definition] of Object.entries(domain.commands)) {
-        const result = runCli(commandArgs(domainName, commandName, definition), testHome);
-        assert.equal(result.status, 0, `${domainName}.${commandName}: ${result.stderr || result.error?.message}`);
-        const response = JSON.parse(result.stdout);
-        assert.doesNotMatch(String(response.errmsg || ''), /Unknown request type/, `${domainName}.${commandName}`);
+  for (const dotted of [false, true]) {
+    it(`routes all 111 business commands with ${dotted ? 'dotted' : 'grouped'} syntax`, () => {
+      assert.equal(COMMAND_COUNT, 111);
+      const testHome = home();
+      for (const [domainName, domain] of Object.entries(COMMAND_CATALOG)) {
+        for (const [commandName, definition] of Object.entries(domain.commands)) {
+          const result = runCli(commandArgs(domainName, commandName, definition, dotted), testHome);
+          assert.equal(result.status, 0, `${domainName}.${commandName}: ${result.stderr || result.error?.message}`);
+          const response = JSON.parse(result.stdout);
+          assert.doesNotMatch(String(response.errmsg || ''), /Unknown request type/, `${domainName}.${commandName}`);
+        }
       }
-    }
-  });
+    });
+  }
 
   it('rejects invalid business arguments before execution', () => {
     const result = runCli([
-      '--raw', 'network.list', '--type', '2',
+      '--raw', 'network', 'list', '--type', '2',
       '-e', '127.0.0.1:5666', '-u', 'admin', '-p', 'admin'
     ], home());
     assert.equal(result.status, 4);

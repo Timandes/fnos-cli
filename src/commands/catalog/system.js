@@ -7,6 +7,7 @@ const command = (method, description, options = [], timeoutPosition = 'last') =>
 
 const systemCatalog = {
   sysinfo: {
+    description: 'System information',
     className: 'SystemInfo',
     commands: {
       getHostName: command('getHostName', 'Get host name information'),
@@ -18,6 +19,7 @@ const systemCatalog = {
     }
   },
   sac: {
+    description: 'UPS and email notifications',
     className: 'SAC',
     commands: {
       upsStatus: command('upsStatus', 'Get UPS status information'),
@@ -26,6 +28,7 @@ const systemCatalog = {
     }
   },
   license: {
+    description: 'Software licenses',
     className: 'LicenseManager',
     commands: {
       list: command('list', 'List installed software licenses', [
@@ -35,12 +38,14 @@ const systemCatalog = {
     }
   },
   liveupdate: {
+    description: 'System updates',
     className: 'LiveUpdate',
     commands: {
       getStatus: command('getStatus', 'Get live update status')
     }
   },
   sysrestore: {
+    description: 'System restore',
     className: 'SystemRestore',
     commands: {
       getInfo: command('getInfo', 'Get system restore information')

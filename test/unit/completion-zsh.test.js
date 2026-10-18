@@ -122,8 +122,10 @@ describe('zsh completion renderer', () => {
     const script = renderZsh(buildCompletionSpec(createProgram()), {
       format: 'autoload', version: '0.3.0'
     });
-    assert.match(script, /sysinfo\.getHostName/);
-    assert.match(script, /docker\.listContainers/);
+    assert.match(script, /sysinfo:System information/);
+    assert.match(script, /getHostName:Get host name information/);
+    assert.match(script, /listContainers:List Docker containers/);
+    assert.doesNotMatch(script, /sysinfo\.getHostName|docker\.listContainers/);
     assert.match(script, /\(-s --server\)-s/);
     assert.match(script, /\(-s --server\)--server/);
     assert.doesNotMatch(script, /_files/);
@@ -131,7 +133,8 @@ describe('zsh completion renderer', () => {
     const functionNames = [...script.matchAll(/^(_fnos[A-Za-z0-9_]*)\(\)/gm)]
       .map((match) => match[1]);
     assert.equal(new Set(functionNames).size, functionNames.length);
-    assert.ok(Buffer.byteLength(script) < 256 * 1024);
+    // Group and help nodes now carry inherited options as well as the 111 leaves.
+    assert.ok(Buffer.byteLength(script) < 384 * 1024);
   });
 
   it('passes zsh syntax checking when zsh is installed', function () {
@@ -210,6 +213,34 @@ describe('zsh completion renderer', () => {
     assert.match(output, /true/);
     assert.match(output, /json/);
     assert.equal(fs.existsSync(counterPath), false);
+  });
+
+  it('completes real command groups, leaves, and inherited options in zsh', function () {
+    this.timeout(15000);
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'fnos-zsh-grouped-'));
+    temporaryDirectories.push(directory);
+    fs.writeFileSync(path.join(directory, '_fnos'), renderZsh(buildCompletionSpec(createProgram()), {
+      format: 'autoload', version: '0.4.0'
+    }));
+    for (const request of [
+      { input: 'fnos us', expected: 'user' },
+      { input: 'fnos user getPref', expected: 'getPreference' },
+      { input: 'fnos user getPreference --ser', expected: '--server' },
+      { input: 'fnos docker listContainers --all f', expected: 'false' },
+      { input: 'fnos user --raw getPref', expected: 'getPreference' },
+      { input: 'fnos user --raw getPreference --na', expected: '--name' },
+      { input: 'fnos docker --raw listContainers --all f', expected: 'false' },
+      { input: 'fnos user --server=office getPref', expected: 'getPreference' },
+      { input: 'fnos user -soffice getPref', expected: 'getPreference' },
+      { input: 'fnos docker listContainers --all=f', expected: 'false' },
+      { input: 'fnos --raw user --verbose getPref', expected: 'getPreference' },
+      { input: 'fnos user getPreference --raw --na', expected: '--name' },
+      { input: 'fnos user --server getPreference getPreference --na', expected: '--name' }
+    ]) {
+      const result = runInteractiveCompletion(directory, request);
+      if (result.error?.code === 'ENOENT') this.skip();
+      assert.equal(result.status, 0, `${request.input}: ${result.stderr}\n${result.stdout}`);
+    }
   });
 
   it('caches server names until settings is atomically replaced', function () {

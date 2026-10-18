@@ -42,11 +42,8 @@ function visibleCommands(command) {
   return command.createHelp().visibleCommands(command);
 }
 
-function commandSpec(command, rootOptions, path = []) {
-  const isRoot = path.length === 0;
-  const options = isRoot
-    ? visibleOptions(command)
-    : mergeOptions(rootOptions, visibleOptions(command));
+function commandSpec(command, inheritedOptions, path = []) {
+  const options = mergeOptions(inheritedOptions, visibleOptions(command));
   return {
     name: command.name(),
     description: command.description(),
@@ -54,13 +51,12 @@ function commandSpec(command, rootOptions, path = []) {
     options: options.map(optionSpec),
     arguments: command.registeredArguments.map(argumentSpec),
     commands: visibleCommands(command).map((child) =>
-      commandSpec(child, rootOptions, [...path, child.name()]))
+      commandSpec(child, options, [...path, child.name()]))
   };
 }
 
 function buildCompletionSpec(program) {
-  const rootOptions = visibleOptions(program);
-  return commandSpec(program, rootOptions);
+  return commandSpec(program, []);
 }
 
 module.exports = { buildCompletionSpec };
