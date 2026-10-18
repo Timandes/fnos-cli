@@ -47,4 +47,23 @@ describe('cross-process file locks', () => {
     release();
     assert.equal(fs.existsSync(file), false);
   });
+
+  it('recovers abandoned reclamation guards as well as the original dead lock', async () => {
+    const file = lockPath();
+    const modulePath = path.resolve(__dirname, '../../src/utils/file-lock');
+    const child = spawn(process.execPath, ['-e', `
+      const { acquireFileLock } = require(${JSON.stringify(modulePath)});
+      (async () => {
+        await acquireFileLock(${JSON.stringify(file)});
+        await acquireFileLock(${JSON.stringify(file + '.reap')});
+        await acquireFileLock(${JSON.stringify(file + '.reap.reap')});
+      })();
+    `]);
+    await once(child, 'exit');
+    const release = await locks.acquireFileLock(file, { timeout: 100 });
+    release();
+    assert.equal(fs.existsSync(file), false);
+    assert.equal(fs.existsSync(file + '.reap'), false);
+    assert.equal(fs.existsSync(file + '.reap.reap'), false);
+  });
 });

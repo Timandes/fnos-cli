@@ -31,6 +31,24 @@ function createOAuthFetch(fetcher = globalThis.fetch) {
   };
 }
 
+/** Give login validation and later commands the same HTTP failure semantics. */
+function classifyOAuthClientErrors(client, serverName) {
+  const request = client.requestPayloadWithResponse.bind(client);
+  client.requestPayloadWithResponse = async (...args) => {
+    try { return await request(...args); }
+    catch (error) {
+      if (/fnOS API request failed \(HTTP 401\)/.test(error.message)) {
+        throw new AuthenticationError(`OAuth access was rejected for server "${serverName}" after refresh. Run "fnos login --auth oauth --server ${serverName}" again.`);
+      }
+      if (/fnOS API request failed \(HTTP 403\)/.test(error.message)) {
+        throw new Error('OAuth gateway denied this request (HTTP 403); check token scopes, account permissions and gateway endpoint support.');
+      }
+      throw error;
+    }
+  };
+  return client;
+}
+
 /** Read a one-time code, cancelling on EOF, SIGINT or the PKCE deadline. */
 function terminalAuthorizationCode(pending, { input = process.stdin, output = process.stderr } = {}) {
   return new Promise((resolve, reject) => {
@@ -81,7 +99,7 @@ async function loginOAuth(options, dependencies = {}) {
       if (/authorization code.*expired|authorization code is required/.test(error.message)) throw new AuthenticationError('OAuth authorization code is missing or expired; restart login.');
       throw error;
     }
-    const client = new sdkModule.FnosOAuthClient(adapter, session, { fetch });
+    const client = classifyOAuthClientErrors(new sdkModule.FnosOAuthClient(adapter, session, { fetch }), serverName);
     const response = await new sdkModule.User(client).getInfo();
     if (response?.result !== 'succ' || (response.errno !== undefined && response.errno !== 0)) {
       throw new AuthenticationError('OAuth account validation failed (user.info); previous credentials were preserved.');
@@ -101,4 +119,4 @@ async function loginOAuth(options, dependencies = {}) {
   });
 }
 
-module.exports = { loginOAuth, terminalAuthorizationCode, createOAuthFetch, validateOAuthEndpoint };
+module.exports = { loginOAuth, terminalAuthorizationCode, createOAuthFetch, validateOAuthEndpoint, classifyOAuthClientErrors };

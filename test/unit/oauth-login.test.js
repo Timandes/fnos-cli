@@ -84,6 +84,21 @@ describe('OAuth authorization flow', () => {
     await assert.rejects(oauth.loginOAuth({ endpoint: 'https://nas.example' }, deps), error => error.exitCode !== 3);
   });
 
+  it('classifies first-login HTTP 401 and 403 consistently while preserving old credentials', async () => {
+    for (const status of [401, 403]) {
+      const deps = context(async url => String(url).includes('/oauthapi/')
+        ? json({ data: { access_token: 'access', refresh_token: 'refresh', expires_in: 3600 } })
+        : json({}, status));
+      deps.settings.saveCredentials('home', { endpoint: 'old', username: 'admin', password: 'pw' });
+      const before = fs.readFileSync(deps.settings.settingsPath, 'utf8');
+      await assert.rejects(oauth.loginOAuth({ endpoint: 'https://nas.example', server: 'home' }, deps), error => {
+        if (status === 401) return error.exitCode === 3 && /login --auth oauth/.test(error.message);
+        return error.exitCode !== 3 && /scope|permission|gateway/i.test(error.message);
+      });
+      assert.equal(fs.readFileSync(deps.settings.settingsPath, 'utf8'), before);
+    }
+  });
+
   it('closes the terminal prompt on EOF, cancellation and authorization deadline', async () => {
     assert.equal(typeof oauth.terminalAuthorizationCode, 'function');
     for (const scenario of ['eof', 'cancel', 'timeout']) {

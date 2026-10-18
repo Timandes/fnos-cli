@@ -2,7 +2,7 @@ const sdk = require('fnos');
 const settings = require('./settings');
 const clientUtils = require('./client');
 const { AuthenticationError } = require('./auth-errors');
-const { createOAuthFetch } = require('./oauth');
+const { createOAuthFetch, classifyOAuthClientErrors } = require('./oauth');
 
 /** Create the selected transport and own its lock/connection until dispose. */
 async function createSession(options, dependencies = {}) {
@@ -31,19 +31,7 @@ async function createSession(options, dependencies = {}) {
           credentials = { ...credentials, oauth: { ...credentials.oauth, session: next } };
         }
       });
-      const request = client.requestPayloadWithResponse.bind(client);
-      client.requestPayloadWithResponse = async (...args) => {
-        try { return await request(...args); }
-        catch (error) {
-          if (/fnOS API request failed \(HTTP 401\)/.test(error.message)) {
-            throw new AuthenticationError(`OAuth access was rejected for server "${credentials.serverName}" after refresh. Run "fnos login --auth oauth --server ${credentials.serverName}" again.`);
-          }
-          if (/fnOS API request failed \(HTTP 403\)/.test(error.message)) {
-            throw new Error('OAuth gateway denied this request (HTTP 403); check token scopes, account permissions and gateway endpoint support.');
-          }
-          throw error;
-        }
-      };
+      classifyOAuthClientErrors(client, credentials.serverName);
     } else {
       client = await (dependencies.createClient || clientUtils.createClient)({ ...options, credentials }, dependencies);
     }

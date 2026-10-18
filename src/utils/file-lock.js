@@ -30,19 +30,28 @@ function createLock(file) {
   };
 }
 
+function abandoned(file) {
+  const owner = ownerAt(file);
+  if (owner) return isDead(owner);
+  try { return Date.now() - fs.statSync(file).mtimeMs > 1000; }
+  catch (error) { if (error.code === 'ENOENT') return false; throw error; }
+}
+
 function reclaim(file) {
   // Serialize reclaimers and re-read ownership inside the reclamation guard.
   // Otherwise two stale readers could remove a newly acquired live lock.
-  const release = createLock(`${file}.reap`);
+  if (!abandoned(file)) return;
+  const guard = `${file}.reap`;
+  let release = createLock(guard);
+  if (!release) {
+    // A reclaimer can also die. Recover its guard under another guard,
+    // applying the same ownership checks instead of bypassing exclusion.
+    reclaim(guard);
+    release = createLock(guard);
+  }
   if (!release) return;
   try {
-    const owner = ownerAt(file);
-    let abandoned = isDead(owner);
-    if (!owner) {
-      try { abandoned = Date.now() - fs.statSync(file).mtimeMs > 1000; }
-      catch (error) { if (error.code !== 'ENOENT') throw error; }
-    }
-    if (abandoned) fs.rmSync(file, { recursive: true, force: true });
+    if (abandoned(file)) fs.rmSync(file, { recursive: true, force: true });
   } finally { release(); }
 }
 
