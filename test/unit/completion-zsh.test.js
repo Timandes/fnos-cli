@@ -80,10 +80,11 @@ function nestedStaticSpec() {
 }
 
 function runInteractiveCompletion(directory, { input, expected }, environment = {}) {
+  // Ignore insecure inherited completion paths instead of prompting on CI.
   const code = [
     'zmodload zsh/zpty',
     'zpty -b child zsh -df',
-    "zpty -w child $'PS1=\"PROMPT> \"; setopt AUTO_LIST NO_BEEP; fpath=(\"$FNOS_COMPLETION_DIR\" $fpath); autoload -Uz compinit; compinit -D; bindkey \"^I\" complete-word; bindkey \"^G\" list-choices; print -- READY'",
+    "zpty -w child $'PS1=\"PROMPT> \"; setopt AUTO_LIST NO_BEEP; fpath=(\"$FNOS_COMPLETION_DIR\" $fpath); autoload -Uz compinit; compinit -i -D; bindkey \"^I\" complete-word; bindkey \"^G\" list-choices; print -- READY'",
     "zpty -r child output '*READY*PROMPT>*' || exit 1",
     'print -r -- "$output"',
     `zpty -w -n child $'${input}\\t\\007'`,
@@ -160,7 +161,7 @@ describe('zsh completion renderer', () => {
 
     const sourceResult = spawnSync('zsh', [
       '-dfc',
-      'autoload -Uz compinit; compinit -d "$1"; source "$2"; whence -w _fnos',
+      'autoload -Uz compinit; compinit -i -d "$1"; source "$2"; whence -w _fnos',
       'zsh', path.join(directory, 'source.zcompdump'), sourcePath
     ], { encoding: 'utf8' });
     if (sourceResult.error?.code === 'ENOENT') this.skip();
@@ -169,7 +170,7 @@ describe('zsh completion renderer', () => {
 
     const autoloadResult = spawnSync('zsh', [
       '-dfc',
-      'fpath=("$1" $fpath); autoload -Uz compinit; compinit -d "$2"; whence -w _fnos',
+      'fpath=("$1" $fpath); autoload -Uz compinit; compinit -i -d "$2"; whence -w _fnos',
       'zsh', directory, path.join(directory, 'autoload.zcompdump')
     ], { encoding: 'utf8' });
     assert.equal(autoloadResult.status, 0, autoloadResult.stderr);
