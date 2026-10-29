@@ -5,6 +5,8 @@
 
 飞牛 fnOS 系统的命令行客户端，通过 WebSocket/WSS 或 OAuth HTTP 网关调用 fnOS API。
 
+官网：[https://fnos.timandes.cn/](https://fnos.timandes.cn/)
+
 ## 功能
 
 - 提供 21 个业务领域、111 条查询命令
