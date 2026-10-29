@@ -53,6 +53,15 @@ function registerLoginCommand(program, dependencies = {}) {
         trustDevice: options.trustDevice,
         verifySsl: options.verifySsl
       });
+      stdout(formatOutput({
+        result: 'succ',
+        server: options.server || 'default',
+        authType: 'password',
+        // URL userinfo may hold proxy credentials; omit it from the summary.
+        endpoint: options.endpoint.replace(/^((?:wss?:\/\/)?)[^/?#]*@/i, '$1'),
+        username: options.username,
+        credentialsSaved: true
+      }, Boolean(program.opts().raw)));
       process.exitCode = 0;
     } catch (error) {
       stderr(`Error: ${errorMessage(error)}`);

@@ -98,6 +98,7 @@ describe('authentication commands', () => {
       const program = new Command();
       registerLoginCommand(program, {
         createClient: async (options) => { received = options; return { close: () => { closed += 1; } }; },
+        stdout: () => {},
         stderr: () => {}
       });
       program.parseAsync(['node', 'fnos', 'login', '-e', '127.0.0.1:1', '-u', 'admin', '-p', 'pw'])
@@ -125,6 +126,7 @@ describe('authentication commands', () => {
           received = options;
           return { close: () => {} };
         },
+        stdout: () => {},
         stderr: () => {}
       });
       program.parseAsync([

@@ -40,6 +40,10 @@ const redactFormat = winston.format((info) => {
   return info;
 });
 
+// These rejections are returned to the command, which prints the complete error.
+const skipSdkAuthenticationErrors = winston.format((info) =>
+  /^(登录失败|两步验证失败):/.test(info.message) ? false : info);
+
 // Log format
 const logFormat = winston.format.printf(({ timestamp, level, message }) => {
   return `${timestamp} - ${level.toUpperCase()} - ${message}`;
@@ -120,16 +124,18 @@ function setLogLevel(verbose) {
   try {
     const fnosLogger = require('fnos/dist/logger');
     if (fnosLogger && fnosLogger.default && fnosLogger.default.transports) {
-      // Remove existing console transport
-      const sdkConsoleTransport = fnosLogger.default.transports.find(t => t instanceof winston.transports.Console);
-      if (sdkConsoleTransport) {
-        fnosLogger.default.remove(sdkConsoleTransport);
+      // Replace CLI-owned transports as well, so repeated setup cannot duplicate logs.
+      for (const transport of [...fnosLogger.default.transports]) {
+        if (transport instanceof winston.transports.Console || transport instanceof StderrTransport) {
+          fnosLogger.default.remove(transport);
+        }
       }
       fnosLogger.default.level = consoleTransport.level;
       // Add our custom stderr transport
       const sdkStderrTransport = new StderrTransport({
         level: consoleTransport.level,
         format: winston.format.combine(
+          skipSdkAuthenticationErrors(),
           redactFormat(),
           winston.format.colorize(),
           logFormat

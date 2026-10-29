@@ -52,18 +52,29 @@ function installHostNameResponseCompatibility(client) {
   };
 }
 
+/** Preserve server rejection details without guessing undocumented errno meanings. */
+function authenticationFailureMessage(response, fallback) {
+  const description = [response?.msg, response?.errmsg].find(value =>
+    typeof value === 'string' && value.trim() && !/^(未知错误|unknown error)$/i.test(value.trim()));
+  const errno = response?.errno;
+  const hasErrno = (typeof errno === 'number' && Number.isFinite(errno)) ||
+    (typeof errno === 'string' && /^-?\d+$/.test(errno));
+  return `${description ? description.trim() : fallback}${hasErrno ? ` (errno: ${errno})` : ''}`;
+}
+
 async function passwordLogin(client, credentials, options) {
   if (!credentials.password) throw new AuthenticationError('Password is required.');
+  let fallback = 'Login failed. Check the username (including letter case) and password.';
   let result;
   try {
     result = await client.login(credentials.username, credentials.password, 10000);
   } catch (error) {
     if (client.loginResponse?.result === 'fail') {
-      throw new AuthenticationError(error.message || 'Login failed.');
+      throw new AuthenticationError(authenticationFailureMessage(client.loginResponse, fallback));
     }
     throw error;
   }
-  if (!result) throw new AuthenticationError('Login failed.');
+  if (!result) throw new AuthenticationError(fallback);
   if (result.twofaSetupRequired) {
     throw new AuthenticationError('This account must bind two-factor authentication in the fnOS web interface first.');
   }
@@ -71,10 +82,11 @@ async function passwordLogin(client, credentials, options) {
     if (!/^\d{6}$/.test(options.twofaCode || '')) {
       throw new AuthenticationError('A six-digit --twofa-code is required for this account.');
     }
+    fallback = 'Two-factor authentication failed. Check the six-digit code and try again.';
     result = await client.submitTwofaCode(options.twofaCode, options.trustDevice === true, 10000);
   }
   if (!result || result.result !== 'succ' || !result.token || !result.secret) {
-    throw new AuthenticationError(result?.msg || result?.errmsg || 'Login failed.');
+    throw new AuthenticationError(authenticationFailureMessage(result, fallback));
   }
   return result;
 }
