@@ -79,6 +79,13 @@ fnos sysinfo getHostName --server office
 fnos logout --server office
 ```
 
+密码登录成功后会显示所选 server、endpoint、用户名及凭据已保存的确认；添加
+`--raw` 输出对应的 JSON 摘要，不包含密码、token 或 secret，endpoint 中的 URL
+认证信息也会省略。服务端拒绝密码登录或两步验证时，只输出一次认证错误，保留
+服务端说明和 `errno`（如有）。服务端未提供有效说明时，会提示检查用户名
+（包括大小写）和密码；两步验证失败则提示检查验证码。CLI 按输入原样发送用户名，
+不会自动转换大小写，也不会将未确认含义的错误码直接解释为密码错误。
+
 设置按名称写入 `~/.fnos/settings.json` 的 `servers.<name>`。未指定
 `--server` 的 login 保存为 `default`。业务命令和 logout 在只有一个已保存
 server 时自动选择；有多个时在交互终端显示编号列表。在 CI、管道等非交互环境中
