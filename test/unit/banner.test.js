@@ -205,7 +205,7 @@ describe('CLI logo banner', () => {
     const tty = terminal();
     await parse(tty.program, ['--version']);
 
-    assert.equal(tty.output(), '0.5.0\n');
+    assert.equal(tty.output(), '0.5.1\n');
   });
 
   it('omits the logo from shell completion source even in an interactive terminal', async () => {
