@@ -96,6 +96,18 @@ describe('localized CLI language selection', () => {
     assert.match(outputs[0], /Usage:/);
     assert.match(outputs[1], /用法：/);
   });
+  it('translates multiple Commander suggestions without leaving English connector text', async () => {
+    const { Command } = require('commander');
+    const { configureLocalization } = require('../../src/i18n/commander');
+    const program = new Command('fnos');
+    program.command('get'); program.command('set');
+    configureLocalization(program, { env: {}, settings: new Settings(home()) }).exitOverride();
+    let errorOutput = '';
+    program.configureOutput({ writeErr: value => { errorOutput += value; } });
+    await assert.rejects(program.parseAsync(['bet'], { from: 'user' }));
+    assert.match(errorOutput, /get, set/);
+    assert.doesNotMatch(errorOutput, /Did you mean|one of/);
+  });
   it('has translations for every catalog domain, command and business option', () => {
     const en = require('../../src/i18n/en');
     const zh = require('../../src/i18n/zh-CN');

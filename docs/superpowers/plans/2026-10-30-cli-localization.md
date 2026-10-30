@@ -1,6 +1,6 @@
 # CLI Localization Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** 提供默认简体中文、可选英文的完整 CLI 文案，以及持久语言偏好和临时覆盖。
 
@@ -45,22 +45,22 @@
 - Produces: `Settings.getLanguage() -> string | null`、`Settings.setLanguage(locale) -> void`、`Settings.clearLanguage() -> void`；无偏好返回 null，损坏 JSON/非对象根抛 ConfigurationError；未知语言保存值由上层 resolver 判断。
 - Existing: `_withSettingsLock(action)`, `load()`, `save(data)`；偏好写入在锁内读原始配置，不调用触发迁移的 `_loadCredentialSettings()`。
 
-- [ ] **Step 1: Write failing context and storage tests**
+- [x] **Step 1: Write failing context and storage tests**
   - `defaults to zh-CN`：`getLanguage() === 'zh-CN'`。
   - `isolates nested and concurrent language contexts`：英文与中文异步回调各得到对应翻译，外部仍为中文。
   - `interpolates literal values once`：带 `{other}` 的值和 `$&` 不被再次解释。
   - `persists only the language field`：对旧顶层凭据、混合 servers 和未知设置执行 set/unset 后，其余字节解析值不变，不触发迁移。
   - `does not overwrite corrupt settings`：非法 JSON、数组根、不可读取/不可替换文件时抛错且原文件不变；校验权限、无设置时 clear 不创建文件。
   - `preserves concurrent credential writes`：两个本地子进程经同一 settings 锁分别写偏好和凭据，结果同时含二者；OAuth session 更新后仍保留偏好。
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
   Run: `npx mocha test/unit/i18n.test.js test/unit/language-settings.test.js`
   Expected: 新功能断言失败；测试使用可选导入/类型断言说明缺失接口，避免只以模块加载错误作为证据。
-- [ ] **Step 3: Implement the interfaces above**
+- [x] **Step 3: Implement the interfaces above**
   字典先加入本任务测试所需的公共标签；设置错误沿用 ConfigurationError，语言值验证仅依赖轻量 languages.js 并在不持有锁时进行，写入与合并在锁内完成。settings 的错误翻译在错误路径惰性加载，普通 __complete 查询不加载完整翻译模块。
-- [ ] **Step 4: Run GREEN**
+- [x] **Step 4: Run GREEN**
   Run: `npx mocha test/unit/i18n.test.js test/unit/language-settings.test.js test/unit/settings.test.js test/unit/oauth-settings.test.js`
   Expected: 全部通过，无配置迁移或权限回归。
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
   Commit the task files with `feat(i18n): add language context and persistent preferences`.
 
 ### Task 2: Localized Command Parsing, Help and Config Commands
@@ -77,22 +77,22 @@
 - Produces: `registerConfigCommand(program, dependencies = {}) -> void`；只支持 `get/set/unset language`。get JSON 为 `{ language, effectiveLanguage, source }`；set/unset JSON 为 `{ language }`；成功提示使用调用开始时的语言。
 - Preserves: `createProgram(dependencies = {})`, `main(argv = process.argv, dependencies = {})` 的公开调用方式，包含 `parseAsync(args, { from: 'user' })` 和无参数帮助。
 
-- [ ] **Step 1: Write failing CLI and config tests**
+- [x] **Step 1: Write failing CLI and config tests**
   - 验证默认中文及 `--lang en` / `--lang=en`、FNOS_LANG、持久偏好的四级优先级；显式有效参数覆盖无效环境变量。
   - 验证 root/group/leaf/dotted/help-navigation 的双语说明、标题、帮助默认值说明；对 21 个领域、111 条命令与全部选项遍历检查两份字典覆盖。
   - 验证参数在命令前后和层级之间、重复参数最后值优先、`--` 边界、其他选项值为 `--lang` 或附着短参数包含该字符串时不误识别。
   - 显式无效语言或缺值返回 `4`；未知命令、未知选项、缺少参数等 Commander 错误使用选定语言并保留原退出语义和技术标识。
   - 以临时 home 子进程执行 set → get → override → unset → get；检查 JSON、来源与跨进程保存，其他键返回 `4` 且不输出凭据。
   - 损坏 settings 时帮助、版本和补全脚本仍成功，config 写入失败且原文件不变；同进程连续解析不串语言。
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
   Run: `npx mocha test/unit/language-cli.test.js test/unit/config-commands.test.js`
   Expected: 默认语言、选项和新 config 命令相关断言失败。
-- [ ] **Step 3: Implement parsing, config and help adapters**
+- [x] **Step 3: Implement parsing, config and help adapters**
   基于真实命令树识别选项值并解析 --lang，使用统一路径处理 parse/parseAsync/无参数帮助。Commander 错误只按已知错误 code 适配 CLI 自有文案，不对任意 Error.message 做翻译匹配。目录原英文说明作为稳定消息键集中翻译，文档仍可直接选择英文；help 和 completion 使用相同的翻译结果。
-- [ ] **Step 4: Run GREEN and update affected compatibility assertions**
+- [x] **Step 4: Run GREEN and update affected compatibility assertions**
   Run: `npx mocha test/unit/language-cli.test.js test/unit/config-commands.test.js test/unit/help.test.js test/unit/program.test.js test/unit/command-options.test.js test/unit/completion-spec.test.js`
   Expected: 全部通过；原业务命令仍为 21 领域/111 条，计数明确排除 config/completion 公共工具组。旧英文文案测试显式选 en，新增默认测试不被全局英文配置掩盖。
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
   Commit the task files with `feat(i18n): localize help and add language configuration commands`.
 
 ### Task 3: Runtime Messages and Human Output
@@ -106,19 +106,19 @@
 - Preserves: `formatOutput(data, raw = false, options = {}) -> string`，格式化函数不改变业务响应；`errorMessage(error) -> string` 仍执行敏感值脱敏。
 - Produces: 集中管理的已知字段标签翻译；未知字段走原 humanizeKey 路径。格式化值、服务端消息、SDK 诊断和技术标识只使用现有净化/脱敏流程，不对其翻译。
 
-- [ ] **Step 1: Write failing runtime tests**
+- [x] **Step 1: Write failing runtime tests**
   在 en 和 zh-CN 上下文分别验证参数错误、无凭据、多 server 选择、密码错误回退/服务端 errno、OAuth 输入/取消/过期/网络 TLS 建议以及 config/登录成功标签。
   断言同一个 fixture 的 raw 输出两种语言逐字等于 JSON.stringify；普通输出的成功、无数据、布尔值、认证摘要与元数据标签对应语言。
   断言未知业务字段仍显示、服务器消息含中英混合和占位符时保留原文、秘密哨兵不会出现在输出，中文标签在窄终端换行后宽度不越界。
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
   Run: `npx mocha test/unit/localized-runtime.test.js`
   Expected: 现有英文自有文案在中文上下文下的断言失败，raw 不变作为同步回归断言。
-- [ ] **Step 3: Implement translations at their source**
+- [x] **Step 3: Implement translations at their source**
   逐个将 CLI 自有消息抽到同键字典，动态变量走命名插值；日志、参数和网络错误只翻译自有解释。顶层 executable 与 main 的失败路径也携带所选语言，避免作用域退出后重新出现英文前缀。
-- [ ] **Step 4: Run GREEN and full offline suite**
+- [x] **Step 4: Run GREEN and full offline suite**
   Run: `npm test`
   Expected: 原有和新增单元测试全部通过；需要本地回环监听时使用已批准的提权运行方式。旧英文文案断言显式选择英文，不改变测试目的或减少覆盖。
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
   Commit the task files with `feat(i18n): translate runtime feedback and human-readable output`.
 
 ### Task 4: Completion, Documentation and Final Verification
@@ -132,19 +132,19 @@
 - Produces: --lang 的 zh-CN/en 候选、config 键和值的静态候选，以及生成时语言的提示；不修改 __complete server 的轻量输出契约。
 - Preserves: `renderCommandReference() -> string`，显式选择英文，结果不受 FNOS_LANG 或已保存偏好影响。
 
-- [ ] **Step 1: Write failing completion and documentation tests**
+- [x] **Step 1: Write failing completion and documentation tests**
   双语生成的 source/autoload 脚本包含对应说明和语言候选，config 提供 language/en/zh-CN 候选，均通过 `zsh -n`。get/unset 不提示多余语言值；静态候选不启动 Node 或访问网络。
   检查 __complete server 仍不加载完整翻译、Commander、SDK、logger；环境为中文/英文时文档生成器均产生相同英文结果。
   README 断言包含四级优先级、三种配置命令、临时覆盖、默认中文以及改变语言后重装补全的说明。
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
   Run: `npx mocha test/unit/localized-completion.test.js test/unit/documentation.test.js`
   Expected: 新候选、说明或文档断言失败。
-- [ ] **Step 3: Implement completion metadata and documentation**
+- [x] **Step 3: Implement completion metadata and documentation**
   从真实命令/参数注册静态候选，翻译生成脚本的用户可见提示，保留生成标记及安装所有权检查。README 仍以中文为主；命令参考显式英文；更新设计状态和本计划复选框记录实际进展。
-- [ ] **Step 4: Verify the full deliverable**
+- [x] **Step 4: Verify the full deliverable**
   Run: `npm run docs:commands`，`npm test`，`git diff --check`，`npm pack --dry-run`。
   Expected: 文档同步、全部离线测试通过、无空白错误，发布文件含新增运行时模块且不含测试/设计/计划。再检查主目录 `git status --porcelain` 为空。
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
   Commit the task files with `docs(i18n): document language selection and localized completion`.
 
 ## Final Review and Handoff

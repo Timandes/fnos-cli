@@ -1,3 +1,4 @@
+const { withLanguage, t } = require('../src/i18n');
 const fs = require('node:fs');
 const path = require('node:path');
 const { COMMAND_CATALOG, COMMAND_COUNT, DOMAIN_COUNT } = require('../src/commands/catalog');
@@ -7,7 +8,7 @@ function displayDefault(value) {
   return ` Default: \`${JSON.stringify(value)}\`.`;
 }
 
-function renderCommandReference() {
+function renderEnglishReference() {
   const lines = [
     '# Command Reference',
     '',
@@ -21,6 +22,19 @@ function renderCommandReference() {
     '',
     'Business commands use `fnos <domain> <command> [options]`. ' +
       'Existing dotted calls such as `fnos user.info` remain supported but are hidden from top-level help and completion.',
+    '',
+    '## Language and Preferences',
+    '',
+    'The default display language is Simplified Chinese (`zh-CN`); English is `en`.',
+    'Priority: `--lang <locale>` > `FNOS_LANG` > saved `language` preference > `zh-CN`.',
+    'Use `fnos --lang en user --help` or `FNOS_LANG=en fnos user info` for a temporary override.',
+    '',
+    '- `fnos config set language en`: save a preference without changing credentials.',
+    '- `fnos config get language [--raw]`: show the saved language, effective language, and source.',
+    '- `fnos config unset language`: clear the preference. Overrides still apply.',
+    '',
+    'Preferences live at the top level of `~/.fnos/settings.json`. JSON output, command names, option names, and server messages are not translated.',
+    'After changing languages, run `fnos completion install zsh` again to update static completion descriptions.',
     '',
     '## Authentication Commands',
     '',
@@ -54,21 +68,26 @@ function renderCommandReference() {
     ''
   ];
   for (const [domainName, domain] of Object.entries(COMMAND_CATALOG)) {
-    lines.push(`## ${domainName}`, '', domain.description, '');
+    lines.push(`## ${domainName}`, '', t(domain.description), '');
     for (const [commandName, definition] of Object.entries(domain.commands)) {
-      lines.push(`### \`${domainName} ${commandName}\``, '', definition.description, '');
+      lines.push(`### \`${domainName} ${commandName}\``, '', t(definition.description), '');
       if (definition.options.length === 0) {
         lines.push('No business options.', '');
       } else {
         lines.push('| Option | Required | Type | Description |', '|---|---:|---|---|');
         for (const option of definition.options) {
-          lines.push(`| \`${option.flag}\` | ${option.required ? 'yes' : 'no'} | ${option.type} | ${option.description}.${displayDefault(option.defaultValue)} |`);
+          lines.push(`| \`${option.flag}\` | ${option.required ? 'yes' : 'no'} | ${option.type} | ${t(option.description)}.${displayDefault(option.defaultValue)} |`);
         }
         lines.push('');
       }
     }
   }
   return lines.join('\n');
+}
+
+/** Generate a stable English reference independent of the invocation language. */
+function renderCommandReference() {
+  return withLanguage('en', renderEnglishReference);
 }
 
 if (require.main === module) {

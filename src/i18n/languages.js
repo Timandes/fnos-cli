@@ -5,4 +5,10 @@ function isLanguage(value) {
   return SUPPORTED_LANGUAGES.includes(value);
 }
 
-module.exports = { SUPPORTED_LANGUAGES, isLanguage };
+/** Interpolate named values once, without interpreting replacement text. */
+function interpolate(message, values = {}) {
+  return message.replace(/\{(\w+)\}/g, (match, name) =>
+    Object.hasOwn(values, name) ? String(values[name]) : match);
+}
+
+module.exports = { SUPPORTED_LANGUAGES, isLanguage, interpolate };

@@ -7,7 +7,7 @@ const { randomUUID, createHash } = require('node:crypto');
 const os = require('node:os');
 const path = require('node:path');
 const { acquireFileLock, acquireFileLockSync } = require('./file-lock');
-const { isLanguage } = require('../i18n/languages');
+const { isLanguage, interpolate } = require('../i18n/languages');
 
 const AUTH_FIELDS = [
   'endpoint', 'username', 'password', 'token', 'longToken', 'secret',
@@ -18,7 +18,9 @@ const SERVER_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 
 class ConfigurationError extends Error {
   constructor(message, values = {}) {
-    super(require('../i18n').t(message, values));
+    super(interpolate(message, values));
+    this.messageKey = message;
+    this.messageValues = values;
     this.name = 'ConfigurationError';
     this.exitCode = 1;
   }

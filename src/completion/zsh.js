@@ -1,3 +1,4 @@
+const { t } = require('../i18n');
 function visibleText(value) {
   return String(value).replace(/\r/g, '\\r').replace(/\n/g, '\\n');
 }
@@ -153,8 +154,8 @@ function renderNodeFunction(node) {
   if (node.arguments.length === 0 && children.length > 0) {
     const position = 1;
     const stateName = 'fnos_values_' + String(position);
-    specs.push(String(position) + ':command:->' + stateName);
-    cases.push(renderCandidateCase(stateName, 'command', children));
+    specs.push(String(position) + ':' + escapeZshSpecText(t('command')) + ':->' + stateName);
+    cases.push(renderCandidateCase(stateName, t('command'), children));
   }
 
   if (node.options.some((option) => option.completion?.kind === 'server')) {
@@ -162,7 +163,7 @@ function renderNodeFunction(node) {
   }
   if (children.length > 0) {
     const childPosition = 1;
-    specs.push('*:argument:->fnos_dispatch');
+    specs.push('*:' + escapeZshSpecText(t('argument')) + ':->fnos_dispatch');
     const branches = children.map((child) =>
       '        ' + quoteZsh(child.value) + ') ' +
       child.functionName + ' "$@" ;;'
@@ -203,7 +204,7 @@ function renderZsh(spec, options = {}) {
   const format = options.format || 'source';
   const version = options.version || 'unknown';
   if (!['source', 'autoload'].includes(format)) {
-    throw new TypeError(`Unsupported zsh completion format: ${format}`);
+    throw new TypeError(t('Unsupported zsh completion format: {format}', { format }));
   }
   const definitions = flatten(spec)
     .map((node) => renderNodeFunction(node))
@@ -215,7 +216,7 @@ function renderZsh(spec, options = {}) {
       `if (( $+functions[compdef] )); then\n` +
       `  compdef _fnos fnos\n` +
       `else\n` +
-      `  print -u2 'fnos completion: initialize compinit before evaluating this script.'\n` +
+      `  print -u2 ${quoteZsh(t('fnos completion: initialize compinit before evaluating this script.'))}\n` +
       `fi\n`;
   }
   return `#compdef fnos\n` +

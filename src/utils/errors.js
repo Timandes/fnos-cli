@@ -1,4 +1,5 @@
 const { t, withLanguage, getLanguage } = require('../i18n');
+const { ConfigurationError } = require('./settings');
 const { isLanguage } = require('../i18n/languages');
 const { HTTPSRequiredError } = require('fnos');
 const { redactSensitive } = require('./logger');
@@ -6,7 +7,8 @@ const { redactSensitive } = require('./logger');
 function errorMessage(error) {
   const message = error instanceof HTTPSRequiredError
     ? t('fnOS requires HTTPS: {requested} was redirected to {redirect}. Use the corresponding wss:// endpoint.', { requested: error.requestedUri, redirect: error.redirectUri })
-    : error?.message || String(error);
+    : error instanceof ConfigurationError ? t(error.messageKey, error.messageValues)
+      : error?.message || String(error);
   return redactSensitive(message);
 }
 

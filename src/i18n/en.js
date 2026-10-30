@@ -354,5 +354,9 @@ module.exports = Object.freeze({
   "Net": "Net",
   "Read": "Read",
   "Write": "Write",
-  "Standby": "Standby"
+  "Standby": "Standby",
+  "command": "command",
+  "Unsupported zsh completion format: {format}": "Unsupported zsh completion format: {format}",
+  "fnos completion: initialize compinit before evaluating this script.": "fnos completion: initialize compinit before evaluating this script.",
+  "(Did you mean one of {suggestions}?)": "(Did you mean one of {suggestions}?)"
 });

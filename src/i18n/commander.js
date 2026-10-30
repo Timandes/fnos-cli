@@ -73,6 +73,7 @@ function translateError(message, code) {
   const definition = errors[code];
   if (definition) {
     message = message.replace(definition[0], (_match, value) => t(definition[1], { value }));
+    message = message.replace(/\(Did you mean one of ([^\n]+)\?\)/g, (_match, suggestions) => t('(Did you mean one of {suggestions}?)', { suggestions }));
     message = message.replace(/\(Did you mean ([^\n]+)\?\)/g, (_match, suggestion) => t('(Did you mean {suggestion}?)', { suggestion }));
   }
   if (code === 'commander.excessArguments') {

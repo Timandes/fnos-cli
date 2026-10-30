@@ -354,5 +354,9 @@ module.exports = Object.freeze({
   "Net": "网络",
   "Read": "读取",
   "Write": "写入",
-  "Standby": "待机"
+  "Standby": "待机",
+  "command": "命令",
+  "Unsupported zsh completion format: {format}": "不支持的 zsh 补全格式：{format}",
+  "fnos completion: initialize compinit before evaluating this script.": "fnos 补全：请先初始化 compinit，再执行此脚本。",
+  "(Did you mean one of {suggestions}?)": "（你是否想输入以下项之一：{suggestions}？）"
 });

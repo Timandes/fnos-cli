@@ -1,5 +1,5 @@
 const { AsyncLocalStorage } = require('node:async_hooks');
-const { isLanguage } = require('./languages');
+const { isLanguage, interpolate } = require('./languages');
 const dictionaries = { en: require('./en'), 'zh-CN': require('./zh-CN') };
 const context = new AsyncLocalStorage();
 
@@ -19,8 +19,7 @@ function t(key, values = {}) {
   const dictionary = dictionaries[getLanguage()];
   const message = Object.hasOwn(dictionary, key) ? dictionary[key]
     : Object.hasOwn(dictionaries.en, key) ? dictionaries.en[key] : key;
-  return message.replace(/\{(\w+)\}/g, (match, name) =>
-    Object.hasOwn(values, name) ? String(values[name]) : match);
+  return interpolate(message, values);
 }
 
 module.exports = { getLanguage, withLanguage, t };
