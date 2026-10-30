@@ -149,10 +149,32 @@
 
 ## Final Review and Handoff
 
-- [ ] 使用 executing-plans 的 ledger 保存已完成任务、验证证据及必要的 Ruling；不重复已完成任务。
-- [ ] 完成后使用 requesting-code-review 对整个分支作一次独立审阅；修复重要问题时先写复现测试，再运行完整单元测试。
-- [ ] 使用 verification-before-completion 核验最终结果，再使用 finishing-a-development-branch 汇报可集成状态。用户未要求前不合并、不推送、不发布；保留 worktree 供继续工作。
+- [x] 使用 executing-plans 的 ledger 保存已完成任务、验证证据及必要的 Ruling；不重复已完成任务。
+- [x] 完成后使用 requesting-code-review 对整个分支作一次独立审阅；修复重要问题时先写复现测试，再运行完整单元测试。
+- [x] 使用 verification-before-completion 核验最终结果，再使用 finishing-a-development-branch 汇报可集成状态。用户未要求前不合并、不推送、不发布；保留 worktree 供继续工作。
 
 ## Worktree Baseline
 
 2026-10-30：在新 worktree 离线安装依赖，提权执行 `npm test`，**277 passing (8s)**。此前两项失败均未在可运行本地监听和设置锁的环境中复现；后续以此通过基线比较。
+
+## Completion Record
+
+- 分支：`feature/cli-localization`；原目录保持干净的 `main`。
+- 完整离线测试：316 项通过；中英文真实 zsh 补全、动态轻量查询、配置跨进程保存、原始 JSON 和脱敏均已覆盖。
+- `npm run docs:commands`、`git diff --check`、`npm pack --dry-run` 通过；发布包包含 48 个文件，包含新运行时模块，未包含测试与设计/计划。
+- 独立整分支审阅（gpt-6-astra，`9d53767..aeef31f`）：没有 Critical / Important 问题，结论 Ready to merge: Yes。
+- 按确认的计划保留分支和 worktree，不合并、不推送、不发布。
+
+### Deferred Minor Findings
+
+1. `fnos --lang en` 没有命令时采用 Commander 的错误帮助路径（stderr、退出码 1）；`fnos --lang en --help` 正常。
+2. `fnos config get language extra` 的中文错误中残留英文连接词 `for`。
+3. 嵌入式代码直接调用子命令 `outputHelp()` 时不解析注入的语言来源；正常 CLI 解析路径已本地化。
+
+### Implementation Decisions
+
+- 英文消息原文作为字典键，动态内容使用命名插值；修改文案需同步两份字典，否则会触发覆盖检查或英文回退。
+- README 人工核对，不新增只匹配人类文档措辞的测试；文案遗漏仍依赖人工发现。
+- 验收限定离线，不访问 NAS/真实 OAuth 服务；真机差异未验证。
+- 并发调用使用独立 Commander 实例，不扩展同一可变实例的并发重入语义；嵌入调用方需自行隔离实例。
+- 错误路径沿用原有控制字符处理，未发现翻译导致的新退化；本次未扩展该类错误输出的净化覆盖。
