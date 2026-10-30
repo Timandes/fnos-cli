@@ -7,7 +7,7 @@ const { runCli } = require('../helpers/run-cli');
 afterEach(() => { process.exitCode = undefined; });
 
 function help(...args) {
-  const result = runCli(args, os.tmpdir());
+  const result = runCli(args, os.tmpdir(), { FNOS_LANG: 'en' });
   assert.equal(result.status, 0, result.stderr || result.error?.message);
   assert.equal(result.stderr, '');
   return result.stdout;
@@ -73,7 +73,7 @@ describe('hierarchical help', () => {
   });
 
   it('rejects unknown subcommands instead of treating them as an empty group', () => {
-    const result = runCli(['user', 'does-not-exist'], os.tmpdir());
+    const result = runCli(['user', 'does-not-exist'], os.tmpdir(), { FNOS_LANG: 'en' });
     assert.equal(result.status, 1);
     assert.match(result.stderr, /unknown command.*does-not-exist/);
   });
