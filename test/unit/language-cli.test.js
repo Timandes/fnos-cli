@@ -62,6 +62,22 @@ describe('localized CLI language selection', () => {
       ['user', 'getPreference', '--name', '--lang', 'en'], ['--', '--lang', 'en']
     ]) assert.deepEqual(resolveLanguage(args, program, dependencies), { language: 'zh-CN', source: 'default' });
   });
+  it('preserves a literal --lang password through actual Commander parsing', async () => {
+    let password;
+    const output = [];
+    const program = createProgram({
+      settings: { getLanguage: () => null, acquireServerLock: async () => () => {} }, env: {},
+      createClient: async options => { password = options.password; return { close() {} }; },
+      stdout: value => output.push(value)
+    });
+    const override = command => { command.exitOverride(); command.commands.forEach(override); };
+    override(program);
+    program.configureOutput({ writeErr() {} });
+    await program.parseAsync(['login', '-e', 'nas', '-u', 'admin', '-p', '--lang'], { from: 'user' });
+    assert.equal(process.exitCode, 0);
+    assert.equal(password, '--lang');
+    assert.match(output.join(''), /凭据已保存/);
+  });
   it('keeps help, version and completion generation usable with corrupt settings', () => {
     const dir = home();
     const store = new Settings(dir);

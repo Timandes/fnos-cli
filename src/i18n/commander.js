@@ -10,25 +10,27 @@ function languageError() {
   return error;
 }
 
-/** Resolve language before Commander handles help or validation errors. */
-function resolveLanguage(args, program, dependencies = {}) {
+function scanLanguageArguments(args, program) {
   let command = program;
   let explicit;
+  const remaining = [];
   for (let index = 0; index < args.length; index += 1) {
     const token = args[index];
-    if (token === '--') break;
+    if (token === '--') { remaining.push(...args.slice(index)); break; }
     if (token === '--lang' || token.startsWith('--lang=')) {
       explicit = token === '--lang' ? args[++index] : token.slice(7);
       if (explicit === undefined || explicit.startsWith('-')) throw languageError();
       continue;
     }
+    remaining.push(token);
     const options = [];
     for (let parent = command; parent; parent = parent.parent) options.push(...parent.options);
     const equal = token.indexOf('=');
     const flag = equal === -1 ? token : token.slice(0, equal);
     const option = options.find(value => value.long === flag || value.short === flag);
     if (option) {
-      if ((option.required || option.optional) && equal === -1) index += 1;
+      if (equal === -1 && args[index + 1] !== undefined && args[index + 1] !== '--' &&
+          (option.required || (option.optional && !args[index + 1].startsWith('-')))) remaining.push(args[++index]);
       continue;
     }
     if (/^-[^-].+/.test(token)) {
@@ -36,7 +38,8 @@ function resolveLanguage(args, program, dependencies = {}) {
       for (let offset = 1; offset < token.length; offset += 1) {
         const short = options.find(value => value.short === `-${token[offset]}`);
         if (short?.required || short?.optional) {
-          if (offset === token.length - 1) index += 1;
+          if (offset === token.length - 1 && args[index + 1] !== undefined && args[index + 1] !== '--' &&
+              (short.required || !args[index + 1].startsWith('-'))) remaining.push(args[++index]);
           break;
         }
       }
@@ -45,6 +48,12 @@ function resolveLanguage(args, program, dependencies = {}) {
     const child = command.commands.find(value => value.name() === token || value.aliases().includes(token));
     if (child) command = child;
   }
+  return { language: explicit, args: remaining };
+}
+
+/** Resolve language before Commander handles help or validation errors. */
+function resolveLanguage(args, program, dependencies = {}) {
+  const { language: explicit } = scanLanguageArguments(args, program);
   if (explicit !== undefined) {
     if (!isLanguage(explicit)) throw languageError();
     return { language: explicit, source: 'argument' };
@@ -124,17 +133,23 @@ function configureLocalization(program, dependencies = {}) {
     }
   };
   localize();
+  // Switches are extracted before root parsing. Leave literal --lang values for
+  // the child command, whose required options are unknown to the root parser.
+  const findOption = program._findOption;
+  program._findOption = function(flag) { return flag === '--lang' ? undefined : findOption.call(this, flag); };
   let parsing = 0;
   const parse = program._parseCommand;
   program._parseCommand = function(operands, args) {
     const selection = resolveLanguage(args, program, dependencies);
     program.languageSelection = selection;
+    program.setOptionValueWithSource('lang', selection.language, { argument: 'cli', environment: 'env', settings: 'config', default: 'default' }[selection.source]);
+    const cleanedArgs = scanLanguageArguments(args, program).args;
     return withLanguage(selection.language, () => {
       localize();
       parsing += 1;
       const finish = error => { parsing -= 1; if (error) { error.language = selection.language; throw error; } };
       try {
-        const result = parse.call(this, operands, args);
+        const result = parse.call(this, operands, cleanedArgs);
         if (result && typeof result.then === 'function') return result.then(value => { finish(); return value; }, finish);
         finish();
         return result;
