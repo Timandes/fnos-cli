@@ -1,9 +1,10 @@
+const { t } = require('../i18n');
 const readline = require('node:readline/promises');
 const { sortServerNames } = require('./settings');
 
 class ServerSelectionError extends Error {
-  constructor(message) {
-    super(message);
+  constructor(message, values = {}) {
+    super(t(message, values));
     this.name = 'ServerSelectionError';
     this.exitCode = 3;
   }
@@ -48,11 +49,11 @@ async function selectServer(servers, dependencies = {}) {
   if (!input.isTTY || !output.isTTY) {
     const names = ordered.map(({ name }) => name).join(', ');
     throw new ServerSelectionError(
-      `Multiple saved servers are available: ${names}. Use --server <name>.`
+      'Multiple saved servers are available: {names}. Use --server <name>.', { names }
     );
   }
   const prompt = dependencies.prompt || terminalPrompt;
-  output.write('Select a server:\n');
+  output.write(t('Select a server:') + '\n');
   ordered.forEach((server, index) => {
     output.write(
       `  ${index + 1}) ${server.name}  ` +
@@ -64,7 +65,7 @@ async function selectServer(servers, dependencies = {}) {
   while (true) {
     let answer;
     try {
-      answer = await prompt(`Server [1-${ordered.length}]: `, {
+      answer = await prompt(t('Server [1-{count}]: ', { count: ordered.length }), {
         input,
         output
       });
@@ -79,7 +80,7 @@ async function selectServer(servers, dependencies = {}) {
       const index = Number(trimmed) - 1;
       if (ordered[index]) return ordered[index].name;
     }
-    output.write(`Enter a number from 1 to ${ordered.length}.\n`);
+    output.write(t('Enter a number from 1 to {count}.', { count: ordered.length }) + '\n');
   }
 }
 

@@ -2,7 +2,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { after, describe, it } = require('mocha');
+const { after, describe } = require('mocha');
+const { it } = require('../helpers/english');
 const { NotConnectedError } = require('fnos');
 
 const originalHome = process.env.HOME;

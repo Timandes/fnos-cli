@@ -4,7 +4,8 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 const { once } = require('node:events');
-const { describe, it, afterEach } = require('mocha');
+const { describe, afterEach } = require('mocha');
+const { it } = require('../helpers/english');
 let locks = {};
 try { locks = require('../../src/utils/file-lock'); } catch (error) { if (error.code !== 'MODULE_NOT_FOUND') throw error; }
 const dirs = [];

@@ -10,7 +10,7 @@ const { registerLoginCommand, registerLogoutCommand, registerAuthStatusCommand }
 const { registerCompletionCommand } = require('./commands/completion');
 const { registerCommands } = require('./commands');
 const { setLogLevel } = require('./utils/logger');
-const { errorMessage } = require('./utils/errors');
+const { formatError } = require('./utils/errors');
 const { registerBanner } = require('./utils/banner');
 const { version } = require('../package.json');
 
@@ -53,7 +53,7 @@ async function main(argv = process.argv, dependencies = {}) {
 
 if (require.main === module) {
   main().catch((error) => {
-    console.error(`Error: ${errorMessage(error)}`);
+    console.error(formatError(error));
     process.exitCode = error.exitCode || 1;
   });
 }

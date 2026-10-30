@@ -3,7 +3,8 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { PassThrough, Writable } = require('node:stream');
-const { describe, it, afterEach } = require('mocha');
+const { describe, afterEach } = require('mocha');
+const { it } = require('../helpers/english');
 const { Settings } = require('../../src/utils/settings');
 let oauth = {};
 try { oauth = require('../../src/utils/oauth'); } catch (error) { if (error.code !== 'MODULE_NOT_FOUND') throw error; }

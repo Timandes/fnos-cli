@@ -4,7 +4,7 @@ const { fixedValues, withCompletion } = require('../completion/metadata');
 const { isLanguage, SUPPORTED_LANGUAGES } = require('../i18n/languages');
 const { t } = require('../i18n');
 const { CommandParameterError } = require('./options');
-const { errorMessage } = require('../utils/errors');
+const { formatError } = require('../utils/errors');
 
 /** Register the small, non-sensitive configuration surface. */
 function registerConfigCommand(program, dependencies = {}) {
@@ -39,7 +39,7 @@ function registerConfigCommand(program, dependencies = {}) {
           `${t({ language: 'Language', effectiveLanguage: 'Effective language', source: 'Source' }[name])}: ${name === 'source' ? t(value) : value ?? '—'}`).join('\n'));
         process.exitCode = 0;
       } catch (error) {
-        stderr(t('Error: {message}', { message: errorMessage(error) }));
+        stderr(formatError(error));
         process.exitCode = error.exitCode || 1;
       }
     });

@@ -2,7 +2,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { afterEach, describe, it } = require('mocha');
+const { afterEach, describe } = require('mocha');
+const { it } = require('../helpers/english');
 const {
   CompletionInstallError,
   installZshCompletion

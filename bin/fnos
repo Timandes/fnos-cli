@@ -7,8 +7,8 @@ if (args[0] === '__complete') {
   process.exitCode = runCompletion(args.slice(1));
 } else {
   require('../src').main().catch((error) => {
-    const { errorMessage } = require('../src/utils/errors');
-    console.error(`Error: ${errorMessage(error)}`);
+    const { formatError } = require('../src/utils/errors');
+    console.error(formatError(error));
     process.exitCode = error.exitCode || 1;
   });
 }

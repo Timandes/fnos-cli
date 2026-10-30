@@ -1,7 +1,8 @@
+const { t } = require('../i18n');
 const settings = require('../utils/settings');
 const { createClient } = require('../utils/client');
 const { resolveServerName } = require('../utils/auth-helper');
-const { errorMessage } = require('../utils/errors');
+const { formatError } = require('../utils/errors');
 const { selectServer } = require('../utils/server-selector');
 const { loginOAuth, validateOAuthEndpoint } = require('../utils/oauth');
 const { CommandParameterError } = require('./options');
@@ -64,7 +65,7 @@ function registerLoginCommand(program, dependencies = {}) {
       }, Boolean(program.opts().raw)));
       process.exitCode = 0;
     } catch (error) {
-      stderr(`Error: ${errorMessage(error)}`);
+      stderr(formatError(error));
       process.exitCode = error.exitCode || 1;
     } finally {
       try { if (client) client.close(); }
@@ -84,7 +85,7 @@ function registerLogoutCommand(program, dependencies = {}) {
     try {
       const servers = store.listServers();
       if (servers.length === 0 && options.server === undefined) {
-        stdout('No saved credentials found.');
+        stdout(t('No saved credentials found.'));
         process.exitCode = 0;
         return;
       }
@@ -95,10 +96,10 @@ function registerLogoutCommand(program, dependencies = {}) {
       });
       if (store.withServerLock) await store.withServerLock(serverName, async () => store.clearCredentials(serverName));
       else store.clearCredentials(serverName);
-      stdout(`Logged out from "${serverName}" successfully. Credentials cleared.`);
+      stdout(t('Logged out from "{server}" successfully. Credentials cleared.', { server: serverName }));
       process.exitCode = 0;
     } catch (error) {
-      stderr(`Error: ${errorMessage(error)}`);
+      stderr(formatError(error));
       process.exitCode = error.exitCode || 1;
     }
   });
@@ -129,7 +130,7 @@ function registerAuthStatusCommand(program, dependencies = {}) {
       stdout(formatOutput(status, Boolean(program.opts().raw)));
       process.exitCode = 0;
     } catch (error) {
-      stderr(`Error: ${errorMessage(error)}`);
+      stderr(formatError(error));
       process.exitCode = error.exitCode || 1;
     }
   });

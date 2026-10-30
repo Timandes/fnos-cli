@@ -17,8 +17,8 @@ const REQUIRED_CREDENTIAL_FIELDS = ['endpoint', 'username', 'password'];
 const SERVER_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 
 class ConfigurationError extends Error {
-  constructor(message) {
-    super(message);
+  constructor(message, values = {}) {
+    super(require('../i18n').t(message, values));
     this.name = 'ConfigurationError';
     this.exitCode = 1;
   }
@@ -71,10 +71,10 @@ function sameKnownCredentials(left, right) {
 
 function validateCredentialRecord(record, label) {
   if (record?.verifySsl !== undefined && typeof record.verifySsl !== 'boolean') {
-    throw new ConfigurationError(`Invalid certificate verification policy for server "${label}".`);
+    throw new ConfigurationError('Invalid certificate verification policy for server "{label}".', { label });
   }
   if (record?.authType !== undefined && !['password', 'oauth'].includes(record.authType)) {
-    throw new ConfigurationError(`Unsupported authentication type for server "${label}".`);
+    throw new ConfigurationError('Unsupported authentication type for server "{label}".', { label });
   }
   if (record?.authType === 'oauth') {
     const oauth = record.oauth;
@@ -90,14 +90,14 @@ function validateCredentialRecord(record, label) {
         !Array.isArray(oauth.scopes) || !oauth.scopes.length || oauth.scopes.some(value => typeof value !== 'string' || !value.trim()) ||
         !isPlainObject(session) || !['accessToken', 'refreshToken'].every(key => typeof session[key] === 'string' && session[key]) ||
         !Number.isFinite(session.expiresAt) || session.expiresAt <= 0) {
-      throw new ConfigurationError(`Invalid OAuth credentials for server "${label}".`);
+      throw new ConfigurationError('Invalid OAuth credentials for server "{label}".', { label });
     }
     return;
   }
   if (!isPlainObject(record) ||
       REQUIRED_CREDENTIAL_FIELDS.some((field) =>
     typeof record[field] !== 'string' || record[field].length === 0)) {
-    throw new ConfigurationError(`Invalid credentials for server "${label}".`);
+    throw new ConfigurationError('Invalid credentials for server "{label}".', { label });
   }
 }
 
@@ -132,7 +132,7 @@ class Settings {
       fs.renameSync(temporaryPath, this.settingsPath);
     } catch (error) {
       fs.rmSync(temporaryPath, { force: true });
-      console.error('Failed to save settings.');
+      console.error(require('../i18n').t('Failed to save settings.'));
       throw error;
     }
   }
@@ -206,7 +206,7 @@ class Settings {
     }
     for (const [name, credentials] of Object.entries(servers)) {
       if (!isValidServerName(name)) {
-        throw new ConfigurationError(`Invalid server name in settings: "${name}".`);
+        throw new ConfigurationError('Invalid server name in settings: "{name}".', { name });
       }
       validateCredentialRecord(credentials, name);
     }
@@ -256,7 +256,7 @@ class Settings {
     }
     for (const [name, credentials] of Object.entries(servers)) {
       if (!isValidServerName(name)) {
-        throw new ConfigurationError(`Invalid server name in settings: "${name}".`);
+        throw new ConfigurationError('Invalid server name in settings: "{name}".', { name });
       }
       validateCredentialRecord(credentials, name);
     }
@@ -284,7 +284,7 @@ class Settings {
 
   saveCredentials(serverName, credentials) {
     if (!isValidServerName(serverName)) {
-      throw new ConfigurationError(`Invalid server name: "${serverName}".`);
+      throw new ConfigurationError('Invalid server name: "{name}".', { name: serverName });
     }
     validateCredentialRecord(credentials, serverName);
     const record = pickCredentials(credentials.authType === 'oauth' ? credentials : {

@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const os = require('node:os');
-const { afterEach, describe, it } = require('mocha');
-const { createProgram } = require('../../src');
+const { afterEach, describe } = require('mocha');
+const { it, createEnglishProgram: createProgram } = require('../helpers/english');
 const { runCli } = require('../helpers/run-cli');
 
 afterEach(() => { process.exitCode = undefined; });

@@ -1,4 +1,6 @@
+const { t } = require('../i18n');
 const readline = require('node:readline');
+const { AsyncResource } = require('node:async_hooks');
 const { webcrypto } = require('node:crypto');
 const sdk = require('fnos');
 const settings = require('./settings');
@@ -38,7 +40,7 @@ function createOAuthFetch(fetcher = globalThis.fetch, { verifySsl = false } = {}
     }); }
     catch (error) { throw describeOAuthTransportError(error, url); }
     if (new URL(url).pathname.startsWith('/oauthapi/') && [400, 401, 403].includes(response.status)) {
-      throw new AuthenticationError(`OAuth authorization or refresh was rejected (HTTP ${response.status}). Run "fnos login --auth oauth" again.`);
+      throw new AuthenticationError(t('OAuth authorization or refresh was rejected (HTTP {status}). Run "fnos login --auth oauth" again.', { status: response.status }));
     }
     return response;
   };
@@ -53,10 +55,10 @@ function classifyOAuthClientErrors(client, serverName) {
     try { return await request(...args); }
     catch (error) {
       if (/fnOS API request failed \(HTTP 401\)/.test(error.message)) {
-        throw new AuthenticationError(`OAuth access was rejected for server "${serverName}" after refresh. Run "fnos login --auth oauth --server ${serverName}" again.`);
+        throw new AuthenticationError(t('OAuth access was rejected for server "{server}" after refresh. Run "fnos login --auth oauth --server {server}" again.', { server: serverName }));
       }
       if (/fnOS API request failed \(HTTP 403\)/.test(error.message)) {
-        throw new Error('OAuth gateway denied this request (HTTP 403); check token scopes, account permissions and gateway endpoint support.');
+        throw new Error(t('OAuth gateway denied this request (HTTP 403); check token scopes, account permissions and gateway endpoint support.'));
       }
       throw error;
     }
@@ -78,12 +80,12 @@ function terminalAuthorizationCode(pending, { input = process.stdin, output = pr
       terminal.close();
       if (error) reject(error); else resolve(code);
     };
-    const cancel = () => finish(new AuthenticationError('OAuth authorization was cancelled.'));
-    const timer = setTimeout(() => finish(new AuthenticationError('OAuth authorization expired; restart login.')), Math.max(0, pending.expiresAt - Date.now()));
+    const cancel = AsyncResource.bind(() => finish(new AuthenticationError(t('OAuth authorization was cancelled.'))));
+    const timer = setTimeout(() => finish(new AuthenticationError(t('OAuth authorization expired; restart login.'))), Math.max(0, pending.expiresAt - Date.now()));
     terminal.once('SIGINT', cancel);
     terminal.once('close', cancel);
     process.once('SIGINT', cancel);
-    terminal.on('line', code => {
+    terminal.on('line', AsyncResource.bind(code => {
       if (done) return;
       if (code.trim()) {
         finish(null, code.trim());
@@ -94,16 +96,16 @@ function terminalAuthorizationCode(pending, { input = process.stdin, output = pr
       Promise.resolve().then(() => {
         if (!done) return launch(pending.url);
       }).catch(() => {
-        if (!done) output.write('Could not open a browser. Open the URL above manually, then paste the authorization code.\n');
+        if (!done) output.write(t('Could not open a browser. Open the URL above manually, then paste the authorization code.') + '\n');
       }).finally(() => {
         opening = false;
         if (!done) {
-          terminal.setPrompt('Authorization code (Enter to reopen browser): ');
+          terminal.setPrompt(t('Authorization code (Enter to reopen browser): '));
           terminal.prompt(true);
         }
       });
-    });
-    terminal.setPrompt('Press Enter to open the browser, or paste the authorization code: ');
+    }));
+    terminal.setPrompt(t('Press Enter to open the browser, or paste the authorization code: '));
     terminal.prompt();
   });
 }
@@ -114,7 +116,7 @@ async function loginOAuth(options, dependencies = {}) {
   const endpoint = validateOAuthEndpoint(options.endpoint, verifySsl);
   const input = dependencies.input || process.stdin;
   const output = dependencies.output || process.stderr;
-  if (!input.isTTY) throw new AuthenticationError('OAuth login requires an interactive terminal. Authorize interactively first, then reuse the saved server.');
+  if (!input.isTTY) throw new AuthenticationError(t('OAuth login requires an interactive terminal. Authorize interactively first, then reuse the saved server.'));
   const store = dependencies.settings || settings;
   const sdkModule = dependencies.sdk || sdk;
   const fetch = createOAuthFetch(dependencies.fetch, { verifySsl });
@@ -124,20 +126,20 @@ async function loginOAuth(options, dependencies = {}) {
       endpoint, deviceName: 'fnos-cli', allowInsecureHttp: endpoint.startsWith('http:'), fetch
     });
     const pending = await adapter.createAuthorizationRequest();
-    output.write(`Open this URL in a browser and authorize within 5 minutes:\n${pending.url}\n`);
+    output.write(t('Open this URL in a browser and authorize within 5 minutes:') + `\n${pending.url}\n`);
     let code;
     try { code = await (dependencies.prompt || terminalAuthorizationCode)(pending, { input, output, openBrowser: dependencies.openBrowser }); }
-    catch { throw new AuthenticationError('OAuth authorization was cancelled or expired; restart login.'); }
+    catch { throw new AuthenticationError(t('OAuth authorization was cancelled or expired; restart login.')); }
     let session;
     try { session = await adapter.exchangeCode(code, pending); }
     catch (error) {
-      if (/authorization code.*expired|authorization code is required/.test(error.message)) throw new AuthenticationError('OAuth authorization code is missing or expired; restart login.');
+      if (/authorization code.*expired|authorization code is required/.test(error.message)) throw new AuthenticationError(t('OAuth authorization code is missing or expired; restart login.'));
       throw error;
     }
     const client = classifyOAuthClientErrors(new sdkModule.FnosOAuthClient(adapter, session, { fetch }), serverName);
     const response = await new sdkModule.User(client).getInfo();
     if (response?.result !== 'succ' || (response.errno !== undefined && response.errno !== 0)) {
-      throw new AuthenticationError('OAuth account validation failed (user.info); previous credentials were preserved.');
+      throw new AuthenticationError(t('OAuth account validation failed (user.info); previous credentials were preserved.'));
     }
     session = client.session;
     const username = response.userInfo?.user || response.data?.userInfo?.user;

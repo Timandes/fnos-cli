@@ -63,7 +63,7 @@ function attempt(file) {
 }
 
 function busyError() {
-  const error = new Error('Timed out waiting for the settings/server lock; another fnos command may be busy.');
+  const error = new Error(require('../i18n').t('Timed out waiting for the settings/server lock; another fnos command may be busy.'));
   error.exitCode = 1;
   return error;
 }

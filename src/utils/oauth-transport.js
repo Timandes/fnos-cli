@@ -1,3 +1,4 @@
+const { t } = require('../i18n');
 const CA_ERRORS = new Set([
   'DEPTH_ZERO_SELF_SIGNED_CERT', 'SELF_SIGNED_CERT_IN_CHAIN',
   'UNABLE_TO_VERIFY_LEAF_SIGNATURE', 'UNABLE_TO_GET_ISSUER_CERT_LOCALLY'
@@ -22,11 +23,11 @@ function findReason(error) {
     if (!current || seen.has(current)) continue;
     seen.add(current);
     if (CA_ERRORS.has(current.code)) {
-      const kind = current.code.includes('SELF_SIGNED') ? 'self-signed certificate is not trusted' : 'certificate issuer is not trusted';
-      return `TLS certificate verification failed (${current.code}): ${kind}. Install a trusted certificate, or set NODE_EXTRA_CA_CERTS to a verified CA PEM before starting fnos; the certificate must also match the endpoint hostname.`;
+      const kind = t(current.code.includes('SELF_SIGNED') ? 'self-signed certificate is not trusted' : 'certificate issuer is not trusted');
+      return t('TLS certificate verification failed ({code}): {kind}. Install a trusted certificate, or set NODE_EXTRA_CA_CERTS to a verified CA PEM before starting fnos; the certificate must also match the endpoint hostname.', { code: current.code, kind });
     }
-    if (HINTS[current.code]) return `${HINTS[current.code]} (${current.code})`;
-    if (current.name === 'TimeoutError') return 'The OAuth request timed out. Check connectivity and the endpoint port.';
+    if (HINTS[current.code]) return `${t(HINTS[current.code])} (${current.code})`;
+    if (current.name === 'TimeoutError') return t('The OAuth request timed out. Check connectivity and the endpoint port.');
     if (current.cause) pending.push(current.cause);
     if (Array.isArray(current.errors)) pending.push(...current.errors);
   }
@@ -37,12 +38,12 @@ function findReason(error) {
 function describeOAuthTransportError(error, url) {
   const reason = findReason(error);
   if (!reason && error?.message !== 'fetch failed') return error;
-  let target = 'the OAuth endpoint';
+  let target = t('the OAuth endpoint');
   try {
     const parsed = new URL(url);
     target = `${parsed.origin}${parsed.pathname}`;
   } catch {}
-  const failure = new Error(`OAuth request to ${target} failed: ${reason || 'network request failed; check connectivity and TLS certificate configuration.'}`, { cause: error });
+  const failure = new Error(t('OAuth request to {target} failed: {reason}', { target, reason: reason || t('network request failed; check connectivity and TLS certificate configuration.') }), { cause: error });
   failure.exitCode = 1;
   return failure;
 }

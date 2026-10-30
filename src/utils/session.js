@@ -1,3 +1,4 @@
+const { t } = require('../i18n');
 const sdk = require('fnos');
 const settings = require('./settings');
 const clientUtils = require('./client');
@@ -15,7 +16,7 @@ async function createSession(options, dependencies = {}) {
     if (credentials.source === 'settings_file' && !dependencies.createClient) {
       release = await store.acquireServerLock(credentials.serverName);
       const latest = store.getCredentials(credentials.serverName);
-      if (!latest) throw new AuthenticationError('Saved credentials were removed. Run "fnos login" again.');
+      if (!latest) throw new AuthenticationError(t('Saved credentials were removed. Run "fnos login" again.'));
       credentials = { ...latest, source: 'settings_file', serverName: credentials.serverName };
     }
     let client;

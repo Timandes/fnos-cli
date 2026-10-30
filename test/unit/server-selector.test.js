@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const { PassThrough } = require('node:stream');
-const { describe, it } = require('mocha');
+const { describe } = require('mocha');
+const { it } = require('../helpers/english');
 const { sortServerNames } = require('../../src/utils/settings');
 
 function loadSelector() {

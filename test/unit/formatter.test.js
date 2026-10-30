@@ -1,5 +1,6 @@
 const assert = require('node:assert/strict');
-const { describe, it } = require('mocha');
+const { describe } = require('mocha');
+const { it } = require('../helpers/english');
 const { stripVTControlCharacters } = require('node:util');
 const stringWidth = require('string-width');
 const { formatOutput } = require('../../src/utils/formatter');

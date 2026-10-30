@@ -1,3 +1,4 @@
+const { t } = require('../../i18n');
 const { stripVTControlCharacters } = require('node:util');
 
 const BYTE_GROUPS = new Set(['mem', 'swap']);
@@ -22,7 +23,18 @@ function sanitizeText(value) {
     .replace(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/g, '');
 }
 
+const FIELD_LABELS = {
+  server: 'Server', endpoint: 'Endpoint', username: 'Username', authtype: 'Auth type',
+  credentialssaved: 'Credentials saved', verifyssl: 'Verify ssl', expiresat: 'Expires at', expired: 'Expired',
+  hostname: 'Host name', uptime: 'Uptime', model: 'Model', cores: 'Cores', threads: 'Threads',
+  temperature: 'Temperature', temp: 'Temp', busy: 'Busy', name: 'Name', disk: 'Disk',
+  mem: 'Mem', swap: 'Swap', total: 'Total', used: 'Used', free: 'Free', available: 'Available',
+  cached: 'Cached', buffers: 'Buffers', net: 'Net', read: 'Read', write: 'Write', standby: 'Standby'
+};
+
 function humanizeKey(key) {
+  const normalized = normalizedName(key);
+  if (Object.hasOwn(FIELD_LABELS, normalized)) return t(FIELD_LABELS[normalized]);
   const words = sanitizeText(key)
     .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
@@ -55,7 +67,7 @@ function formatSpeed(value) {
 function formatScalar(key, value, path = []) {
   if (value === null || value === undefined) return '—';
   if (value === '') return '\"\"';
-  if (typeof value === 'boolean') return value ? '✓ Yes' : '✗ No';
+  if (typeof value === 'boolean') return value ? t('✓ Yes') : t('✗ No');
   if (typeof value !== 'number') return sanitizeText(value);
   const field = normalizedName(key);
   const group = normalizedName(path[path.length - 1] || '');
@@ -79,7 +91,7 @@ function compactValue(value) {
       typeof nestedValue === 'string' ? sanitizeText(nestedValue) : nestedValue);
     return serialized === undefined ? '—' : sanitizeText(serialized);
   } catch (error) {
-    return '[Circular]';
+    return t('[Circular]');
   }
 }
 

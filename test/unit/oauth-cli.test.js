@@ -23,7 +23,7 @@ function run(args, context, { input, tty = false } = {}) {
   }
   const child = spawn(process.execPath, ['--require', path.resolve(__dirname, '../helpers/oauth-fetch-preload'),
     path.resolve(__dirname, '../../bin/fnos'), ...args], {
-    env: { ...process.env, HOME: context.home, FNOS_TEST_OAUTH_FIXTURE: context.fixture },
+    env: { ...process.env, FNOS_LANG: 'en', HOME: context.home, FNOS_TEST_OAUTH_FIXTURE: context.fixture },
     stdio: ['pipe', 'pipe', 'pipe', 'ipc']
   });
   let stdout = ''; let stderr = ''; let answered = false;
