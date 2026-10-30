@@ -7,6 +7,7 @@ const { randomUUID, createHash } = require('node:crypto');
 const os = require('node:os');
 const path = require('node:path');
 const { acquireFileLock, acquireFileLockSync } = require('./file-lock');
+const { isLanguage } = require('../i18n/languages');
 
 const AUTH_FIELDS = [
   'endpoint', 'username', 'password', 'token', 'longToken', 'secret',
@@ -134,6 +135,41 @@ class Settings {
       console.error('Failed to save settings.');
       throw error;
     }
+  }
+
+  _loadPreferenceSettings() {
+    if (!this.exists()) return {};
+    const data = this.load();
+    if (!isPlainObject(data)) throw new ConfigurationError('Invalid settings structure.');
+    return data;
+  }
+
+  /** Read a language preference without migrating or modifying credentials. */
+  getLanguage() {
+    return this._loadPreferenceSettings().language ?? null;
+  }
+
+  /** Merge a validated language preference under the shared settings lock. */
+  setLanguage(language) {
+    if (!isLanguage(language)) {
+      const error = new Error(require('../i18n').t('Language must be zh-CN or en.'));
+      error.exitCode = 4;
+      throw error;
+    }
+    return this._withSettingsLock(() => {
+      this.save({ ...this._loadPreferenceSettings(), language });
+    });
+  }
+
+  /** Clear only the language preference, leaving an absent file absent. */
+  clearLanguage() {
+    if (!this.exists()) return;
+    return this._withSettingsLock(() => {
+      const data = this._loadPreferenceSettings();
+      if (!Object.hasOwn(data, 'language')) return;
+      delete data.language;
+      this.save(data);
+    });
   }
 
   clear() {
