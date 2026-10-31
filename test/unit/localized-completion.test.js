@@ -35,7 +35,11 @@ describe('localized completion and command reference', () => {
         assert.match(script, locale === 'en' ? /Get user information/ : /获取用户信息/);
         if (format === 'source') {
           // Executing without compinit exercises the actual fallback, not source text.
-          const fallback = spawnSync('zsh', ['-dfc', script], { encoding: 'utf8' });
+          // Exceed argv limits on macOS too, so this catches Linux's E2BIG regression.
+          const input = `${script}\n#${'x'.repeat(2 * 1024 * 1024)}\n`;
+          const fallback = spawnSync('zsh', ['-df'], { input, encoding: 'utf8' });
+          assert.ifError(fallback.error);
+          assert.equal(fallback.status, 0, fallback.stderr);
           assert.match(fallback.stderr, locale === 'en' ? /initialize compinit/ : /先初始化 compinit/);
         }
       }
