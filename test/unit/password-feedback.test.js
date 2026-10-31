@@ -56,7 +56,7 @@ function runLogin({ response = success, twofaResponse, raw = false, server, endp
   `;
   const result = spawnSync(process.execPath, ['-e', script], {
     cwd: path.resolve(__dirname, '../..'), encoding: 'utf8', timeout: 5000,
-    env: { ...process.env, HOME: home, NO_COLOR: '1' }
+    env: { ...process.env, FNOS_LANG: 'en', HOME: home, NO_COLOR: '1' }
   });
   assert.ifError(result.error);
   const settingsFile = path.join(home, '.fnos/settings.json');

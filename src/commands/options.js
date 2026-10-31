@@ -1,3 +1,4 @@
+const { t } = require('../i18n');
 const { Option } = require('commander');
 const { isValidServerName } = require('../utils/settings');
 const {
@@ -7,8 +8,8 @@ const {
 } = require('../completion/metadata');
 
 class CommandParameterError extends Error {
-  constructor(message) {
-    super(message);
+  constructor(message, values = {}) {
+    super(t(message, values));
     this.name = 'CommandParameterError';
     this.exitCode = 4;
   }
@@ -24,23 +25,23 @@ function parseBoolean(name, value) {
   if (typeof value === 'boolean') return value;
   if (typeof value === 'string' && value.toLowerCase() === 'true') return true;
   if (typeof value === 'string' && value.toLowerCase() === 'false') return false;
-  throw new CommandParameterError(`--${name} must be true or false.`);
+  throw new CommandParameterError('--{name} must be true or false.', { name });
 }
 
 function parseInteger(definition, value) {
   if (typeof value === 'string' && !/^-?\d+$/.test(value.trim())) {
-    throw new CommandParameterError(`--${definition.name} must be a decimal integer.`);
+    throw new CommandParameterError('--{name} must be a decimal integer.', { name: definition.name });
   }
   const parsed = typeof value === 'number' ? value : Number(value);
-  if (!Number.isInteger(parsed)) throw new CommandParameterError(`--${definition.name} must be an integer.`);
+  if (!Number.isInteger(parsed)) throw new CommandParameterError('--{name} must be an integer.', { name: definition.name });
   if (definition.min !== undefined && parsed < definition.min) {
-    throw new CommandParameterError(`--${definition.name} must be at least ${definition.min}.`);
+    throw new CommandParameterError('--{name} must be at least {min}.', { name: definition.name, min: definition.min });
   }
   if (definition.max !== undefined && parsed > definition.max) {
-    throw new CommandParameterError(`--${definition.name} must be at most ${definition.max}.`);
+    throw new CommandParameterError('--{name} must be at most {max}.', { name: definition.name, max: definition.max });
   }
   if (definition.allowedValues && !definition.allowedValues.includes(parsed)) {
-    throw new CommandParameterError(`--${definition.name} must be one of: ${definition.allowedValues.join(', ')}.`);
+    throw new CommandParameterError('--{name} must be one of: {values}.', { name: definition.name, values: definition.allowedValues.join(', ') });
   }
   return parsed;
 }
@@ -50,7 +51,7 @@ function parseJson(name, value) {
   try {
     return JSON.parse(value);
   } catch {
-    throw new CommandParameterError(`--${name} must be valid JSON.`);
+    throw new CommandParameterError('--{name} must be valid JSON.', { name });
   }
 }
 
@@ -59,25 +60,25 @@ function parseValue(definition, value) {
   if (definition.type === 'integer') return parseInteger(definition, value);
   if (definition.type === 'csv') {
     const values = Array.isArray(value) ? value : String(value).split(',').map((item) => item.trim()).filter(Boolean);
-    if (values.length === 0) throw new CommandParameterError(`--${definition.name} must contain at least one value.`);
+    if (values.length === 0) throw new CommandParameterError('--{name} must contain at least one value.', { name: definition.name });
     return values;
   }
   if (definition.type === 'json') {
     const parsed = parseJson(definition.name, value);
     if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') {
-      throw new CommandParameterError(`--${definition.name} must be a JSON object.`);
+      throw new CommandParameterError('--{name} must be a JSON object.', { name: definition.name });
     }
     return parsed;
   }
   if (definition.type === 'json-record-array') {
     const parsed = parseJson(definition.name, value);
     if (!Array.isArray(parsed) || parsed.length === 0 || parsed.some((item) => !item || Array.isArray(item) || typeof item !== 'object')) {
-      throw new CommandParameterError(`--${definition.name} must be a non-empty JSON object array.`);
+      throw new CommandParameterError('--{name} must be a non-empty JSON object array.', { name: definition.name });
     }
     return parsed;
   }
   const parsed = String(value);
-  if (!parsed.trim()) throw new CommandParameterError(`--${definition.name} must not be empty.`);
+  if (!parsed.trim()) throw new CommandParameterError('--{name} must not be empty.', { name: definition.name });
   return parsed;
 }
 
@@ -97,7 +98,7 @@ function buildMethodArguments(definition, options, timeout = 10000) {
   const values = definition.options.map((option) => {
     const raw = readRawValue(option, options);
     if (raw === undefined) {
-      if (option.required) throw new CommandParameterError(`--${option.name} is required.`);
+      if (option.required) throw new CommandParameterError('--{name} is required.', { name: option.name });
       return cloneDefault(option.defaultValue);
     }
     return parseValue(option, raw);

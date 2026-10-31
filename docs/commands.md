@@ -6,8 +6,22 @@ fnos-cli exposes 111 commands across 21 domains.
 
 Use `fnos --help` to list command groups, `fnos user --help` to list user commands, and `fnos user getPreference --help` to inspect command-specific options.
 Each level includes its available global options. Business groups and commands also show authentication options.
+Running bare `fnos` or only a language option such as `fnos --lang en` writes help to stderr and exits with code 1. Explicit `--help` writes to stdout and exits with code 0.
 
 Business commands use `fnos <domain> <command> [options]`. Existing dotted calls such as `fnos user.info` remain supported but are hidden from top-level help and completion.
+
+## Language and Preferences
+
+The default display language is Simplified Chinese (`zh-CN`); English is `en`.
+Priority: `--lang <locale>` > `FNOS_LANG` > saved `language` preference > `zh-CN`.
+Use `fnos --lang en user --help` or `FNOS_LANG=en fnos user info` for a temporary override.
+
+- `fnos config set language en`: save a preference without changing credentials.
+- `fnos config get language [--raw]`: show the saved language, effective language, and source.
+- `fnos config unset language`: clear the preference. Overrides still apply.
+
+Preferences live at the top level of `~/.fnos/settings.json`. JSON output, command names, option names, and server messages are not translated.
+After changing languages, run `fnos completion install zsh` again to update static completion descriptions.
 
 ## Authentication Commands
 

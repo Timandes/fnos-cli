@@ -1,14 +1,15 @@
+const { t } = require('../i18n');
 const { Argument } = require('commander');
 const { version } = require('../../package.json');
 const { fixedValues, withCompletion } = require('../completion/metadata');
 const { buildCompletionSpec } = require('../completion/spec');
 const { renderZsh } = require('../completion/zsh');
 const { installZshCompletion } = require('../completion/installer');
-const { errorMessage } = require('../utils/errors');
+const { formatError } = require('../utils/errors');
 
 class UnsupportedShellError extends Error {
   constructor(shell) {
-    super(`unsupported shell "${shell}"; supported shells: zsh`);
+    super(t('unsupported shell "{shell}"; supported shells: zsh', { shell }));
     this.name = 'UnsupportedShellError';
     this.exitCode = 4;
   }
@@ -34,7 +35,7 @@ function registerCompletionCommand(program, dependencies = {}) {
   const installCompletion = dependencies.installCompletion || installZshCompletion;
 
   const report = (error) => {
-    stderr(`Error: ${errorMessage(error)}`);
+    stderr(formatError(error));
     process.exitCode = error.exitCode || 1;
   };
 
@@ -63,8 +64,8 @@ function registerCompletionCommand(program, dependencies = {}) {
       requireZsh(shell);
       const target = installCompletion(render(program, 'autoload'));
       stdout(
-        `Installed zsh completion at ${target}.\n` +
-        'Add this before compinit in ~/.zshrc:\n' +
+        t('Installed zsh completion at {target}.', { target }) + '\n' +
+        t('Add this before compinit in ~/.zshrc:') + '\n' +
         'fpath=(~/.fnos/completions $fpath)\n' +
         'autoload -Uz compinit\n' +
         'compinit'

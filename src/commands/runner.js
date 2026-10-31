@@ -1,8 +1,9 @@
+const { t } = require('../i18n');
 const { buildMethodArguments } = require('./options');
 const clientUtils = require('../utils/client');
 const { formatOutput } = require('../utils/formatter');
 const { resolveCredentials } = require('../utils/auth-helper');
-const { errorMessage } = require('../utils/errors');
+const { errorMessage, formatError } = require('../utils/errors');
 const { createSession } = require('../utils/session');
 
 function outputOptions(raw, dependencies) {
@@ -50,12 +51,12 @@ async function runCommand(context, dependencies = {}) {
     const failed = responses.find(value => value &&
       (value.result === 'fail' || (typeof value.errno === 'number' && value.errno !== 0)));
     if (failed) {
-      stderr(`Error: ${errorMessage(new Error(failed.errmsg || failed.msg || 'fnOS business request failed.'))}`);
+      stderr(formatError(new Error(failed.errmsg || failed.msg || t('fnOS business request failed.'))));
       return 1;
     }
     return 0;
   } catch (error) {
-    stderr(`Error: ${errorMessage(error)}`);
+    stderr(formatError(error));
     return error.exitCode || 1;
   } finally {
     if (session) await session.dispose();

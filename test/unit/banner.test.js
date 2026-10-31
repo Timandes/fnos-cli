@@ -1,8 +1,8 @@
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const { afterEach, describe, it } = require('mocha');
-const { createProgram } = require('../../src');
+const { afterEach, describe } = require('mocha');
+const { it, createEnglishProgram: createProgram } = require('../helpers/english');
 const sdkLogger = require('fnos/dist/logger').default;
 
 const sdkTransports = [...sdkLogger.transports];
@@ -24,7 +24,7 @@ function terminal(dependencies = {}) {
     }),
     ...dependencies
   };
-  const program = createProgram(options);
+  const program = createProgram({ ...options, settings: options.settings || { acquireServerLock: async () => () => {} } });
   program.configureOutput({
     writeOut: value => writes.push(value),
     writeErr: value => writes.push(value)
@@ -123,13 +123,14 @@ describe('CLI logo banner', () => {
       require('./src').main(['node', 'fnos']);
     `], {
       cwd: path.resolve(__dirname, '../..'),
-      env: { ...process.env, NO_COLOR: '' },
+      env: { ...process.env, FNOS_LANG: 'en', NO_COLOR: '' },
       encoding: 'utf8'
     });
 
-    assert.equal(result.status, 0, result.stderr);
-    assert.ok(result.stdout.startsWith(LOGO_START), result.stdout.slice(0, 200));
-    assert.ok(result.stdout.indexOf(LOGO_START) < result.stdout.indexOf('Usage:'));
+    assert.equal(result.status, 1, result.stderr);
+    assert.equal(result.stdout, '');
+    assert.ok(result.stderr.startsWith(LOGO_START), result.stderr.slice(0, 200));
+    assert.ok(result.stderr.indexOf(LOGO_START) < result.stderr.indexOf('Usage:'));
   });
 
   it('uses the compact brand when the terminal cannot fit the multiline logo', async () => {

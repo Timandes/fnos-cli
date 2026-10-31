@@ -1,3 +1,4 @@
+const { t } = require('../i18n');
 const { COMMAND_CATALOG } = require('./catalog');
 const { registerAuthenticationOptions, registerBusinessOptions } = require('./options');
 const { runCommand } = require('./runner');
@@ -23,7 +24,7 @@ function registerCommands(program, dependencies = {}) {
       .usage('[options] <command>')
       .addHelpCommand();
     registerAuthenticationOptions(group);
-    group.addHelpText('after', `\nRun "fnos ${domainName} <command> --help" for command details.`);
+    group.addHelpText('after', () => '\n' + t('Run "fnos {domain} <command> --help" for command details.', { domain: domainName }));
     group.action(() => {
       if (group.args.length) {
         group.error(`error: unknown command '${group.args[0]}'`, { code: 'commander.unknownCommand' });

@@ -1,5 +1,6 @@
 const assert = require('node:assert/strict');
-const { describe, it } = require('mocha');
+const { describe } = require('mocha');
+const { it } = require('../helpers/english');
 const { createOAuthFetch } = require('../../src/utils/oauth');
 
 function fetchFailure(code) {

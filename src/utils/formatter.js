@@ -1,3 +1,4 @@
+const { t } = require('../i18n');
 const { isPlainObject, sanitizeText } = require('./output/values');
 const { renderValue } = require('./output/objects');
 const { renderKeyValueTable } = require('./output/tables');
@@ -37,18 +38,18 @@ function renderMetadata(metadata, options) {
   const chunks = [];
   const entries = [];
   if (metadata.result === 'succ') {
-    chunks.push(theme.success('✓ Success'));
+    chunks.push(theme.success('✓ ' + t('Success')));
   } else if (Object.prototype.hasOwnProperty.call(metadata, 'result')) {
-    entries.push({ key: 'Result', value: sanitizeText(metadata.result) });
+    entries.push({ key: t('Result'), value: sanitizeText(metadata.result) });
   }
   if (Object.prototype.hasOwnProperty.call(metadata, 'req')) {
-    entries.push({ key: 'Request', value: sanitizeText(metadata.req) });
+    entries.push({ key: t('Request'), value: sanitizeText(metadata.req) });
   }
   if (Object.prototype.hasOwnProperty.call(metadata, 'reqid')) {
-    entries.push({ key: 'ID', value: sanitizeText(metadata.reqid) });
+    entries.push({ key: t('ID'), value: sanitizeText(metadata.reqid) });
   }
   if (Object.prototype.hasOwnProperty.call(metadata, 'rev')) {
-    entries.push({ key: 'Rev', value: sanitizeText(metadata.rev) });
+    entries.push({ key: t('Rev'), value: sanitizeText(metadata.rev) });
   }
   const details = renderKeyValueTable(entries, options);
   if (details) chunks.push(details);
@@ -57,7 +58,7 @@ function renderMetadata(metadata, options) {
 
 function formatOutput(data, raw = false, options = {}) {
   if (raw) return JSON.stringify(data, null, 2);
-  if (data === null || data === undefined) return 'No data returned';
+  if (data === null || data === undefined) return t('No data returned');
   const context = {
     color: Boolean(options.color),
     columns: Number.isInteger(options.columns) && options.columns > 0

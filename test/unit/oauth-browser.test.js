@@ -1,7 +1,8 @@
 const assert = require('node:assert/strict');
 const { EventEmitter } = require('node:events');
 const { PassThrough, Writable } = require('node:stream');
-const { describe, it } = require('mocha');
+const { describe } = require('mocha');
+const { it } = require('../helpers/english');
 const { terminalAuthorizationCode } = require('../../src/utils/oauth');
 let browser = {};
 try { browser = require('../../src/utils/browser'); } catch (error) { if (error.code !== 'MODULE_NOT_FOUND') throw error; }

@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const { HTTPSRequiredError } = require('fnos');
-const { describe, it } = require('mocha');
+const { describe } = require('mocha');
+const { it } = require('../helpers/english');
 const { COMMAND_CATALOG } = require('../../src/commands/catalog');
 
 function loadRunner() {

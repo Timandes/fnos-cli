@@ -19,7 +19,7 @@ describe('CLI program', () => {
       assert.equal(typeof entry.main, 'function');
       const program = entry.createProgram();
       const groups = program.commands.filter((command) =>
-        command.commands.length && command.name() !== 'completion');
+        command.commands.length && !['completion', 'config'].includes(command.name()));
       assert.equal(groups.length, 21);
       assert.equal(groups.reduce((count, group) => count + group.commands.length, 0), 111);
       assert.ok(groups.find((group) => group.name() === 'docker')

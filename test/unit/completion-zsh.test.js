@@ -3,8 +3,8 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const { afterEach, describe, it } = require('mocha');
-const { createProgram } = require('../../src');
+const { afterEach, describe } = require('mocha');
+const { it, createEnglishProgram: createProgram } = require('../helpers/english');
 const { buildCompletionSpec } = require('../../src/completion/spec');
 const {
   escapeZshSpecText,

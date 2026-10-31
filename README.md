@@ -10,6 +10,7 @@
 ## 功能
 
 - 提供 21 个业务领域、111 条查询命令
+- 默认简体中文，支持英文及持久保存的语言偏好
 - 按命令组逐级展示帮助，同时兼容原有点号调用
 - 支持命名多 server、密码登录、token 重用、两步验证和显式 OAuth 登录
 - 支持 `ws://`、`wss://` 以及可选的严格证书验证
@@ -69,6 +70,45 @@ fnos completion install zsh
 
 命令、选项、布尔值和有限枚举值由 CLI 静态生成；`--server` 的候选名称会从
 `~/.fnos/settings.json` 刷新，不会发起网络请求。
+
+## 界面语言
+
+CLI 默认使用简体中文（`zh-CN`），也支持英文（`en`）。语言按以下优先级选择：
+
+```text
+--lang > FNOS_LANG > 已保存的 language 偏好 > zh-CN
+```
+
+临时切换只影响本次调用，参数可放在命令之前或之后：
+
+```bash
+fnos --lang en user --help
+fnos user info --lang en
+FNOS_LANG=en fnos user info
+```
+
+保存、查询或清除语言偏好：
+
+```bash
+fnos config set language en
+fnos config get language
+fnos config get language --raw
+fnos config unset language
+```
+
+偏好保存在 `~/.fnos/settings.json` 顶层的 `language` 字段，与各 server 的凭据独立。
+设置或清除偏好的确认信息使用本次调用的语言，新偏好从下次调用生效。查询结果包含
+已保存的 `language`、本次 `effectiveLanguage`，以及 `source`（`argument`、
+`environment`、`settings` 或 `default`）。清除偏好后，没有临时覆盖时恢复中文。
+
+只有 `zh-CN` 和 `en` 是有效值，不根据 `LANG` 或系统语言自动切换。空 `FNOS_LANG`
+视为未设置；无效参数或环境变量返回退出码 `4`，有效 `--lang` 可以覆盖无效环境变量。
+设置缺失、损坏或其中的语言不受支持时，帮助、版本和补全脚本的语言回退为中文；
+真正需要读写设置的命令仍会报告配置错误，保留原文件。
+
+帮助、CLI 自身提示与错误、结果标签和补全说明随语言变化。命令名、参数名、
+`--raw` JSON、服务端消息及业务字符串保持原文。已安装补全脚本的说明是静态文本，
+改变偏好后请重新运行 `fnos completion install zsh`。
 
 ## 登录与认证
 
@@ -177,7 +217,12 @@ fnos user --help
 fnos user getPreference --help
 ```
 
-直接运行 `fnos` 或 `fnos user` 也会展示对应层级的帮助。通用认证参数可放在
+直接运行 `fnos` 或 `fnos user` 也会展示对应层级的帮助。
+其中，裸 `fnos` 或仅带语言选项
+（如 `fnos --lang en`）时，帮助写入 stderr，退出码为 `1`；显式请求
+`fnos --help` 或 `fnos --lang en --help` 时，帮助写入 stdout，退出码为 `0`。
+
+通用认证参数可放在
 业务组的子命令之前或之后，例如 `fnos user --server office info` 与
 `fnos user info --server office` 等价。
 
@@ -200,6 +245,7 @@ fnos security getProcessTraffic --processes '[{"pid":1001,"process":"demo"}]'
 | 选项 | 说明 |
 |---|---|
 | `--raw` | 输出原始 JSON |
+| `--lang <locale>` | 临时选择显示语言：`zh-CN` 或 `en` |
 | `-v, --verbose` | 输出 info 日志到 stderr |
 | `-vv, --debug` | 输出 debug 日志到 stderr |
 | `-vvv, --silly` | 输出 silly 日志到 stderr |

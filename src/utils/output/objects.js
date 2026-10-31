@@ -1,3 +1,4 @@
+const { t } = require('../../i18n');
 const { formatValue, humanizeKey, isPlainObject, isRecordArray } = require('./values');
 const { createTheme } = require('./theme');
 const { renderKeyValueTable, renderRecordTable, wrapIndentedText } = require('./tables');
@@ -10,7 +11,7 @@ function renderTitle(title, indent, options) {
 }
 
 function renderObject(object, options, path, depth, seen) {
-  if (seen.has(object)) return `${' '.repeat(depth * 2)}[Circular]`;
+  if (seen.has(object)) return `${' '.repeat(depth * 2)}${t('[Circular]')}`;
   const keys = Object.keys(object);
   if (keys.length === 0) return `${' '.repeat(depth * 2)}{}`;
   seen.add(object);

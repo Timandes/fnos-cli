@@ -1,13 +1,13 @@
 const assert = require('node:assert/strict');
 const os = require('node:os');
-const { afterEach, describe, it } = require('mocha');
-const { createProgram } = require('../../src');
+const { afterEach, describe } = require('mocha');
+const { it, createEnglishProgram: createProgram } = require('../helpers/english');
 const { runCli } = require('../helpers/run-cli');
 
 afterEach(() => { process.exitCode = undefined; });
 
 function help(...args) {
-  const result = runCli(args, os.tmpdir());
+  const result = runCli(args, os.tmpdir(), { FNOS_LANG: 'en' });
   assert.equal(result.status, 0, result.stderr || result.error?.message);
   assert.equal(result.stderr, '');
   return result.stdout;
@@ -24,7 +24,10 @@ describe('hierarchical help', () => {
     assert.match(output, /--verbose/);
     assert.doesNotMatch(output, /user\.info|listContainers|--server|--name/);
     assert.match(output, /fnos <command> --help/);
-    assert.equal(help(), output);
+    const missingCommand = runCli([], os.tmpdir(), { FNOS_LANG: 'en' });
+    assert.equal(missingCommand.status, 1);
+    assert.equal(missingCommand.stdout, '');
+    assert.equal(missingCommand.stderr, output);
   });
 
   it('expands just the selected group with authentication and global options', () => {
@@ -73,7 +76,7 @@ describe('hierarchical help', () => {
   });
 
   it('rejects unknown subcommands instead of treating them as an empty group', () => {
-    const result = runCli(['user', 'does-not-exist'], os.tmpdir());
+    const result = runCli(['user', 'does-not-exist'], os.tmpdir(), { FNOS_LANG: 'en' });
     assert.equal(result.status, 1);
     assert.match(result.stderr, /unknown command.*does-not-exist/);
   });

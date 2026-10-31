@@ -1,3 +1,4 @@
+const { t } = require('../i18n');
 /**
  * Authentication helper for credential validation and resolution
  */
@@ -19,8 +20,8 @@ function hasPartialCredentials(options) {
     (provided.length < values.length || values.some((value) => !value));
 }
 
-function credentialError(message) {
-  const error = new Error(message);
+function credentialError(message, values = {}) {
+  const error = new Error(t(message, values));
   error.name = 'AuthenticationError';
   error.exitCode = 3;
   return error;
@@ -48,9 +49,9 @@ async function resolveServerName(requestedName, dependencies = {}) {
   const servers = settingsStore.listServers();
   if (requestedName !== undefined) {
     if (!servers.some(({ name }) => name === requestedName)) {
-      const available = servers.map(({ name }) => name).join(', ') || '(none)';
+      const available = servers.map(({ name }) => name).join(', ') || t('(none)');
       throw credentialError(
-        `Saved server "${requestedName}" was not found. Available servers: ${available}.`
+        'Saved server "{name}" was not found. Available servers: {available}.', { name: requestedName, available }
       );
     }
     return requestedName;

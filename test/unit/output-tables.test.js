@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const { stripVTControlCharacters } = require('node:util');
-const { describe, it } = require('mocha');
+const { describe } = require('mocha');
+const { it } = require('../helpers/english');
 const stringWidth = require('string-width');
 
 function loadTables() {

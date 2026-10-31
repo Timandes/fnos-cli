@@ -1,3 +1,4 @@
+const { t } = require('../i18n');
 /**
  * FnosClient wrapper with fnos 0.4 authentication.
  */
@@ -63,8 +64,8 @@ function authenticationFailureMessage(response, fallback) {
 }
 
 async function passwordLogin(client, credentials, options) {
-  if (!credentials.password) throw new AuthenticationError('Password is required.');
-  let fallback = 'Login failed. Check the username (including letter case) and password.';
+  if (!credentials.password) throw new AuthenticationError(t('Password is required.'));
+  let fallback = t('Login failed. Check the username (including letter case) and password.');
   let result;
   try {
     result = await client.login(credentials.username, credentials.password, 10000);
@@ -76,13 +77,13 @@ async function passwordLogin(client, credentials, options) {
   }
   if (!result) throw new AuthenticationError(fallback);
   if (result.twofaSetupRequired) {
-    throw new AuthenticationError('This account must bind two-factor authentication in the fnOS web interface first.');
+    throw new AuthenticationError(t('This account must bind two-factor authentication in the fnOS web interface first.'));
   }
   if (result.twofaRequired) {
     if (!/^\d{6}$/.test(options.twofaCode || '')) {
-      throw new AuthenticationError('A six-digit --twofa-code is required for this account.');
+      throw new AuthenticationError(t('A six-digit --twofa-code is required for this account.'));
     }
-    fallback = 'Two-factor authentication failed. Check the six-digit code and try again.';
+    fallback = t('Two-factor authentication failed. Check the six-digit code and try again.');
     result = await client.submitTwofaCode(options.twofaCode, options.trustDevice === true, 10000);
   }
   if (!result || result.result !== 'succ' || !result.token || !result.secret) {
@@ -101,7 +102,7 @@ async function createClientWithCredentials(credentials, options = {}, dependenci
   const verifySsl = options.verifySsl === true || credentials.verifySsl === true;
 
   try {
-    activeLogger.info(`Connecting to ${credentials.endpoint}...`);
+    activeLogger.info(t('Connecting to {endpoint}...', { endpoint: credentials.endpoint }));
     await client.connect(credentials.endpoint, timeout * 1000, false, !verifySsl);
     installHostNameResponseCompatibility(client);
     let result;
@@ -110,7 +111,7 @@ async function createClientWithCredentials(credentials, options = {}, dependenci
     if (canUseToken(credentials)) {
       result = await client.loginViaToken(credentials.token, credentials.longToken, credentials.secret, 10000);
       usedToken = tokenLoginSucceeded(result);
-      if (!usedToken) activeLogger.debug('Saved token was rejected; falling back to password login.');
+      if (!usedToken) activeLogger.debug(t('Saved token was rejected; falling back to password login.'));
     }
 
     if (!usedToken) {
@@ -118,7 +119,7 @@ async function createClientWithCredentials(credentials, options = {}, dependenci
       if (options.saveCredentials || credentials.source === 'settings_file') {
         const decryptedSecret = client.getDecryptedSecret();
         if (typeof decryptedSecret !== 'string' || decryptedSecret.length === 0) {
-          throw new AuthenticationError('Login secret decryption failed.');
+          throw new AuthenticationError(t('Login secret decryption failed.'));
         }
         const serverName = options.serverName || credentials.serverName || 'default';
         settingsStore.saveCredentials(serverName, {
@@ -150,14 +151,14 @@ async function createClient(options = {}, dependencies = {}) {
     source: 'command_line'
   };
   if (!credentials.endpoint || !credentials.username) {
-    throw new AuthenticationError('Missing credentials. Run "fnos login" or provide -e/-u/-p.');
+    throw new AuthenticationError(t('Missing credentials. Run "fnos login" or provide -e/-u/-p.'));
   }
   return createClientWithCredentials(credentials, options, dependencies);
 }
 
 function getSDKInstance(client, className, sdkModule = sdk) {
   if (!SDK_CLASS_NAMES.includes(className) || typeof sdkModule[className] !== 'function') {
-    throw new Error(`Unknown SDK class: ${className}`);
+    throw new Error(t('Unknown SDK class: {className}', { className }));
   }
   return new sdkModule[className](client);
 }

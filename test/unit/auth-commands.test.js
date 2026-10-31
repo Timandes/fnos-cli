@@ -13,10 +13,11 @@ afterEach(() => {
 function runScript(script) {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'fnos-cli-auth-command-'));
   homes.push(home);
-  return spawnSync(process.execPath, ['-e', script], {
+  const scopedScript = `require('./src/i18n').withLanguage('en', async () => { ${script} });`;
+  return spawnSync(process.execPath, ['-e', scopedScript], {
     cwd: path.resolve(__dirname, '../..'),
     encoding: 'utf8',
-    env: { ...process.env, HOME: home }
+    env: { ...process.env, FNOS_LANG: 'en', HOME: home }
   });
 }
 
