@@ -6,6 +6,7 @@ fnos-cli exposes 111 commands across 21 domains.
 
 Use `fnos --help` to list command groups, `fnos user --help` to list user commands, and `fnos user getPreference --help` to inspect command-specific options.
 Each level includes its available global options. Business groups and commands also show authentication options.
+Running bare `fnos` or only a language option such as `fnos --lang en` writes help to stderr and exits with code 1. Explicit `--help` writes to stdout and exits with code 0.
 
 Business commands use `fnos <domain> <command> [options]`. Existing dotted calls such as `fnos user.info` remain supported but are hidden from top-level help and completion.
 

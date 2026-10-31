@@ -160,16 +160,22 @@
 ## Completion Record
 
 - 分支：`feature/cli-localization`；原目录保持干净的 `main`。
-- 完整离线测试：316 项通过；中英文真实 zsh 补全、动态轻量查询、配置跨进程保存、原始 JSON 和脱敏均已覆盖。
+- 首次功能验收的完整离线测试：316 项通过；中英文真实 zsh 补全、动态轻量查询、配置跨进程保存、原始 JSON 和脱敏均已覆盖。
 - `npm run docs:commands`、`git diff --check`、`npm pack --dry-run` 通过；发布包包含 48 个文件，包含新运行时模块，未包含测试与设计/计划。
 - 独立整分支审阅（gpt-6-astra，`9d53767..aeef31f`）：没有 Critical / Important 问题，结论 Ready to merge: Yes。
 - 按确认的计划保留分支和 worktree，不合并、不推送、不发布。
 
-### Deferred Minor Findings
+### Review Feedback Follow-up — 2026-10-31
 
-1. `fnos --lang en` 没有命令时采用 Commander 的错误帮助路径（stderr、退出码 1）；`fnos --lang en --help` 正常。
-2. `fnos config get language extra` 的中文错误中残留英文连接词 `for`。
-3. 嵌入式代码直接调用子命令 `outputHelp()` 时不解析注入的语言来源；正常 CLI 解析路径已本地化。
+用户确认处理原审阅的三个小项，其中无命令行为按用户选择统一为错误帮助：
+
+1. 无参数的 `fnos` 与 `fnos --lang en` 均将帮助写入 stderr、返回 `1`；显式 `--help` 仍写入 stdout、返回 `0`。原有正常无参数帮助设计以此用户决定为准。
+2. 参数过多错误只插值命令名称，连接词由翻译模板提供；中英文和不含命令名的根错误均有回归测试。
+3. 所有已注册命令的直接 `outputHelp()` 均按环境变量、持久偏好、默认值解析语言，保留错误帮助的 stderr 分流；命令解析进行中继续使用参数选择的语言。
+
+三个问题均先用实际失败的回归测试复现，再修改实现。直接帮助覆盖根、分组、叶子、点号兼容入口及多级工具命令，并验证重复切换语言不修改设置文件或泄漏调用上下文。
+
+本轮新增 6 项回归测试，全量 `npm test` 为 **322 passing (13s)**；命令参考生成同步，`git diff --check` 通过。
 
 ### Implementation Decisions
 

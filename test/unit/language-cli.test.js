@@ -15,7 +15,7 @@ function cli(args, dir = home(), env = {}) { return runCli(args, dir, { FNOS_LAN
 describe('localized CLI language selection', () => {
   it('defaults all help levels to simplified Chinese independent of system locale', () => {
     const dir = home();
-    for (const args of [[], ['--help'], ['user'], ['user', '--help'], ['help', 'user'], ['user', 'help', 'info'], ['user.info', '--help']]) {
+    for (const args of [['--help'], ['user'], ['user', '--help'], ['help', 'user'], ['user', 'help', 'info'], ['user.info', '--help']]) {
       const result = cli(args, dir, { LANG: 'en_US.UTF-8', LC_ALL: 'en_US.UTF-8' });
       assert.equal(result.status, 0, result.stderr);
       assert.match(result.stdout, /用法：/);

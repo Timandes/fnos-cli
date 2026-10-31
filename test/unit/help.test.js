@@ -24,7 +24,10 @@ describe('hierarchical help', () => {
     assert.match(output, /--verbose/);
     assert.doesNotMatch(output, /user\.info|listContainers|--server|--name/);
     assert.match(output, /fnos <command> --help/);
-    assert.equal(help(), output);
+    const missingCommand = runCli([], os.tmpdir(), { FNOS_LANG: 'en' });
+    assert.equal(missingCommand.status, 1);
+    assert.equal(missingCommand.stdout, '');
+    assert.equal(missingCommand.stderr, output);
   });
 
   it('expands just the selected group with authentication and global options', () => {

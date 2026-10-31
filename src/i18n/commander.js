@@ -86,8 +86,10 @@ function translateError(message, code) {
     message = message.replace(/\(Did you mean ([^\n]+)\?\)/g, (_match, suggestion) => t('(Did you mean {suggestion}?)', { suggestion }));
   }
   if (code === 'commander.excessArguments') {
-    message = message.replace(/^error: too many arguments( for '[^\n]*')?\. Expected (\d+) arguments? but got (\d+)\.$/, (_match, command = '', expected, received) =>
-      t('error: too many arguments{command}. Expected {expected} but got {received}.', { command, expected, received }));
+    message = message.replace(/^error: too many arguments(?: for '([^\n]*)')?\. Expected (\d+) arguments? but got (\d+)\.$/, (_match, command, expected, received) =>
+      command === undefined
+        ? t('error: too many arguments. Expected {expected} but got {received}.', { expected, received })
+        : t("error: too many arguments for '{command}'. Expected {expected} but got {received}.", { command, expected, received }));
   }
   if (code === 'commander.invalidArgument') {
     message = message.replace(/^error: (option|argument) '([^\n]*)' argument '([^\n]*)' is invalid\. (.*)$/, (_match, kind, option, value, reason) =>
@@ -156,13 +158,15 @@ function configureLocalization(program, dependencies = {}) {
       } catch (error) { return finish(error); }
     });
   };
-  const outputHelp = program.outputHelp;
-  program.outputHelp = function(...args) {
-    if (parsing) return outputHelp.apply(this, args);
-    const selection = resolveLanguage([], program, dependencies);
-    program.languageSelection = selection;
-    return withLanguage(selection.language, () => { localize(); return outputHelp.apply(this, args); });
-  };
+  for (const command of commands) {
+    const outputHelp = command.outputHelp;
+    command.outputHelp = function(...args) {
+      if (parsing) return outputHelp.apply(this, args);
+      const selection = resolveLanguage([], program, dependencies);
+      program.languageSelection = selection;
+      return withLanguage(selection.language, () => { localize(); return outputHelp.apply(this, args); });
+    };
+  }
   return program;
 }
 

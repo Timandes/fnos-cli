@@ -217,7 +217,12 @@ fnos user --help
 fnos user getPreference --help
 ```
 
-直接运行 `fnos` 或 `fnos user` 也会展示对应层级的帮助。通用认证参数可放在
+直接运行 `fnos` 或 `fnos user` 也会展示对应层级的帮助。
+其中，裸 `fnos` 或仅带语言选项
+（如 `fnos --lang en`）时，帮助写入 stderr，退出码为 `1`；显式请求
+`fnos --help` 或 `fnos --lang en --help` 时，帮助写入 stdout，退出码为 `0`。
+
+通用认证参数可放在
 业务组的子命令之前或之后，例如 `fnos user --server office info` 与
 `fnos user info --server office` 等价。
 

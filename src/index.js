@@ -43,10 +43,6 @@ function createProgram(dependencies = {}) {
 
 async function main(argv = process.argv, dependencies = {}) {
   const program = createProgram(dependencies);
-  if (argv.slice(2).length === 0) {
-    program.outputHelp();
-    return 0;
-  }
   await program.parseAsync(argv);
   return process.exitCode || 0;
 }
