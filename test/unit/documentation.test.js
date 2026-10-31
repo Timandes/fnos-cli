@@ -17,10 +17,10 @@ function loadRenderer() {
 const { renderCommandReference } = loadRenderer();
 
 describe('release documentation', () => {
-  it('keeps package versions synchronized at 0.5.1', () => {
-    assert.equal(pkg.version, '0.5.1');
-    assert.equal(lock.version, '0.5.1');
-    assert.equal(lock.packages[''].version, '0.5.1');
+  it('keeps package versions synchronized at 0.6.0', () => {
+    assert.equal(pkg.version, '0.6.0');
+    assert.equal(lock.version, '0.6.0');
+    assert.equal(lock.packages[''].version, '0.6.0');
   });
 
   it('keeps the generated command reference synchronized', () => {
@@ -49,7 +49,7 @@ describe('release documentation', () => {
     assert.match(readme, /~\/\.fnos\/completions/);
     assert.match(readme, /npm update -g fnos-cli/);
     assert.doesNotMatch(readme, /凭证加密保存/);
-    assert.match(changelog, /## \[0\.5\.1\] - 2026-10-29/);
+    assert.match(changelog, /## \[0\.6\.0\] - 2026-10-31/);
     assert.match(changelog, /zsh.*Tab.*补全/i);
     assert.doesNotMatch(changelog, /凭证加密保存/);
     assert.match(constitution, /fnos@0\.5\.0/);
