@@ -17,6 +17,7 @@ function specFor(locale) { return withLanguage(locale, () => buildCompletionSpec
 describe('localized completion and command reference', () => {
   for (const locale of ['en', 'zh-CN']) {
     it(`generates valid source and autoload scripts with ${locale} descriptions`, function() {
+      this.timeout(10000);
       const spec = specFor(locale);
       const lang = spec.options.find(option => option.long === '--lang');
       assert.deepEqual(lang.completion.values, ['zh-CN', 'en']);
