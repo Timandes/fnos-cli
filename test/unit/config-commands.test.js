@@ -18,14 +18,14 @@ describe('language config commands', () => {
   it('persists and clears preferences across processes with stable raw summaries', () => {
     const { cli, store } = setup();
     const original = { endpoint: 'legacy', username: 'a', password: 'secret-sentinel', other: true };
-    store.save(original);
+    const stored = store.save(original);
     assert.deepEqual(json(cli(['config', 'get', 'language', '--raw'])), { language: null, effectiveLanguage: 'zh-CN', source: 'default' });
     assert.deepEqual(json(cli(['config', 'set', 'language', 'en', '--raw'])), { language: 'en' });
     assert.deepEqual(json(cli(['config', 'get', 'language', '--raw'])), { language: 'en', effectiveLanguage: 'en', source: 'settings' });
     assert.deepEqual(json(cli(['--lang=zh-CN', 'config', 'get', 'language', '--raw'])), { language: 'en', effectiveLanguage: 'zh-CN', source: 'argument' });
     assert.deepEqual(json(cli(['config', 'get', 'language', '--raw'], { FNOS_LANG: 'zh-CN' })), { language: 'en', effectiveLanguage: 'zh-CN', source: 'environment' });
     assert.deepEqual(json(cli(['config', 'unset', 'language', '--raw'])), { language: null });
-    assert.deepEqual(store.load(), original);
+    assert.deepEqual(store.load(), stored);
     assert.doesNotMatch(cli(['config', 'get', 'language']).stdout, /secret-sentinel|password/);
   });
   it('uses the invocation language for confirmation and the saved language on the next call', () => {

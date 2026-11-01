@@ -39,7 +39,9 @@ function renderEnglishReference() {
     '',
     '## Authentication Commands',
     '',
-    '- `fnos login -e <endpoint> -u <username> -p <password>`: password login (default).',
+    '- `fnos login -e <endpoint> -u <username>`: password login (default), with a hidden interactive prompt.',
+    '- `fnos login -e <endpoint> -u <username> --password-stdin`: read a password from piped or redirected stdin through EOF.',
+    '- `-p, --password <password>` remains supported and is mutually exclusive with `--password-stdin`.',
     '- `fnos login --auth oauth --server <name> -e https://<host>:<port>`: interactive browser authorization and code entry.',
     '- `--verify-ssl` enables strict HTTPS certificate verification; login saves the policy with that server. Verification is disabled by default, including for older OAuth records.',
     '- HTTP origins work without an extra flag; `--verify-ssl` requires an HTTPS origin for OAuth.',
@@ -47,6 +49,8 @@ function renderEnglishReference() {
     '- `fnos logout --server <name>`: clear the selected local credential record.',
     '',
     'Saved servers choose their authentication transport automatically. Existing records without `authType` use password authentication. OAuth login requires a TTY; business commands reuse and refresh saved sessions without prompting.',
+    '',
+    'Passwords are stored as versioned AES-256-GCM ciphertext, using a random local key at `~/.fnos/password.key`. Unix files use mode 0600; Windows uses a protected current-user ACL. Legacy plaintext records migrate on credential access or settings writes. Completion lookups are read-only. Missing keys or moved installations may require login again; damaged keys are not overwritten. Older CLI versions cannot read the new ciphertext.',
     '',
     '## Shared Authentication Options',
     '',
@@ -60,12 +64,13 @@ function renderEnglishReference() {
     '| `-e, --endpoint <endpoint>` | Temporary server endpoint. |',
     '| `-u, --username <username>` | Temporary username. |',
     '| `-p, --password <password>` | Temporary password. |',
+    '| `--password-stdin` | Read one password from standard input, preserving spaces and removing one trailing LF/CRLF. |',
     '| `--twofa-code <code>` | Six-digit two-factor code. |',
     '| `--trust-device` | Trust this device after two-factor login. |',
     '| `--verify-ssl` | Verify HTTPS/WSS certificates; login saves the policy. Default: disabled. |',
     '',
-    '`--server` cannot be combined with `-e`, `-u`, or `-p`. ' +
-      'Temporary endpoint, username, and password must be supplied together.',
+    '`--server` cannot be combined with `-e`, `-u`, `-p`, or `--password-stdin`. ' +
+      'Temporary endpoint and username must be supplied together. Without a password option, a TTY prompts without echo; noninteractive calls fail with guidance. Empty or multiline passwords are rejected.',
     ''
   ];
   for (const [domainName, domain] of Object.entries(COMMAND_CATALOG)) {

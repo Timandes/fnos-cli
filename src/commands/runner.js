@@ -35,7 +35,7 @@ async function runCommand(context, dependencies = {}) {
 
   try {
     const args = buildMethodArguments(context.definition, context.options, 10000);
-    const credentials = await resolve(context.options);
+    const credentials = await resolve(context.options, dependencies);
     session = await create({
       credentials,
       timeout: 60,

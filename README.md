@@ -121,6 +121,27 @@ fnos sysinfo getHostName --server office
 fnos logout --server office
 ```
 
+密码可通过三种方式提供，适用于 `login` 和使用临时凭据的业务命令：
+
+```bash
+# 推荐：省略密码参数，在交互终端中隐藏输入密码
+fnos login --server nas-9 -e ws://192.168.31.118:5666 -u admin
+
+# 脚本：从标准输入读取密码（示例中的文件由你自行保护）
+fnos login --server nas-9 -e ws://192.168.31.118:5666 -u admin --password-stdin < /path/to/password-file
+
+# 保留原用法；参数中的密码可能被 shell 历史或进程列表记录
+fnos login --server nas-9 -e ws://192.168.31.118:5666 -u admin --password 'your-password'
+```
+
+`--password` 和 `--password-stdin` 不能同时使用。标准输入模式读取到 EOF，
+只移除末尾一个 LF 或 CRLF，保留密码首尾空格；空密码、多行密码以及超过
+64 KiB 的输入会被拒绝。在交互终端直接使用 `--password-stdin` 会报错，
+应使用管道或重定向。未提供这两个选项时，只有交互终端会提示输入；非交互环境
+会立即提示使用 `--password-stdin` 或 `--password`。隐藏输入支持退格，
+按 Ctrl-C 取消，按 Enter 确认。已保存 server 的业务命令继续复用凭据，不提示密码。
+OAuth 登录不能使用这些密码输入选项。
+
 密码登录成功后会显示所选 server、endpoint、用户名及凭据已保存的确认；添加
 `--raw` 输出对应的 JSON 摘要，不包含密码、token 或 secret，endpoint 中的 URL
 认证信息也会省略。服务端拒绝密码登录或两步验证时，只输出一次认证错误，保留
@@ -133,8 +154,28 @@ fnos logout --server office
 server 时自动选择；有多个时在交互终端显示编号列表。在 CI、管道等非交互环境中
 存在多个 server 时，必须显式提供 `--server`。
 
-旧版顶层单 server 凭证会在首次凭证访问时一次性迁移为
-`servers.default`。升级后的配置不再供旧版 CLI 读取。
+密码以 AES-256-GCM 密文保存在 `~/.fnos/settings.json` 的 `password` 字段中，
+随机生成的 256 位本机密钥保存在同目录的 `password.key`。密文包含格式版本、
+算法、随机 nonce、认证标签和密文数据，并绑定 server 名称、endpoint 和用户名；
+不要直接编辑这些字段来迁移连接。`credentialVersion` 和 `secretFormat` 继续表示
+WebSocket token/secret 的兼容版本，与密码加密格式分别管理。
+
+macOS/Linux 使用 `0700` 目录和 `0600` 文件权限；Windows 使用受保护的 ACL，
+只授予当前用户 SID 完全控制权限，覆盖配置目录、密钥和设置文件。权限设置失败时
+停止保存。密钥文件和配置文件一起泄露仍可解密密码；本次变更仅加密密码，
+现有 WS token/secret 和 OAuth token 的存储格式不变。
+
+旧版顶层单 server 凭据仍迁移到 `servers.default`，已有多 server 明文密码也会在
+正常凭据访问时迁移为密文。保存其他设置（例如语言偏好）时，也会加密其中的
+明文密码；server 名称补全只读查询不会迁移或创建密钥。其他设置、各 server 的
+独立凭据和已有 token 均保留。列出 server、查看 `auth.status` 和退出登录均不需要
+解密密码；退出登录只删除指定记录，其他记录按原存储值保留，即使密钥丢失也可执行。旧版 CLI 无法读取新密文，不支持直接降级使用该配置。
+
+换机器可以重新登录，也可以同时安全迁移设置文件和 `password.key`。仅复制设置
+无法解密密码。密钥缺失时，读取操作不会自动重建它；显式密码登录可以生成新密钥，
+其他旧密文记录仍需各自重新登录。密钥损坏时，CLI 不会覆盖它；确认无法恢复后，
+删除 `~/.fnos/password.key` 并为各 server 重新登录。删除密钥会使所有用它加密的
+密码无法解密。解密失败时保留原配置，报错不会输出密码或密钥内容。
 
 后续命令会优先重用所选 server 的有效 token；token 失效时回退到该记录的密码
 登录，并把新 token 写回同一个 server。
@@ -145,7 +186,8 @@ server 时自动选择；有多个时在交互终端显示编号列表。在 CI�
 fnos resmon cpu -e nas.example.com:5666 -u admin -p password
 ```
 
-`-e`、`-u`、`-p` 必须同时提供，且不能与 `--server` 混用。退出并只清除选中
+`-e` 和 `-u` 必须同时提供；密码可使用以上任一输入方式。临时凭据和密码输入选项
+不能与 `--server` 混用。退出并只清除选中
 server 的认证记录：
 
 ```bash

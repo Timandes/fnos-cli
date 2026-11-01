@@ -6,6 +6,7 @@ const { t } = require('../i18n');
 const settings = require('./settings');
 const { selectServer } = require('./server-selector');
 const { CommandParameterError } = require('../commands/options');
+const { resolvePassword } = require('./password-input');
 
 /**
  * Check if partial credentials are provided
@@ -43,7 +44,7 @@ function validateCommandLineCredentials(options) {
 }
 
 async function resolveServerName(requestedName, dependencies = {}) {
-  const settingsStore = dependencies.settingsStore || settings;
+  const settingsStore = dependencies.settingsStore || dependencies.settings || settings;
   const select = dependencies.select || selectServer;
   const selectorDependencies = dependencies.selectorDependencies || {};
   const servers = settingsStore.listServers();
@@ -69,12 +70,18 @@ async function resolveCredentials(options, dependencies = {}) {
   const hasTemporaryCredential = [
     options.endpoint,
     options.username,
-    options.password
+    options.password,
+    options.passwordStdin
   ].some((value) => value !== undefined);
   if (options.server !== undefined && hasTemporaryCredential) {
     throw new CommandParameterError(
-      '--server cannot be combined with -e/--endpoint, -u/--username, or -p/--password.'
+      '--server cannot be combined with -e/--endpoint, -u/--username, or password input options.'
     );
+  }
+  if (hasTemporaryCredential && options.endpoint && options.username) {
+    options = { ...options, password: await resolvePassword(options, dependencies) };
+  } else if (options.passwordStdin) {
+    throw credentialError('PARTIAL_CREDENTIALS');
   }
   const validation = validateCommandLineCredentials(options);
 
@@ -88,7 +95,7 @@ async function resolveCredentials(options, dependencies = {}) {
     };
   }
 
-  const settingsStore = dependencies.settingsStore || settings;
+  const settingsStore = dependencies.settingsStore || dependencies.settings || settings;
   const serverName = await resolveServerName(options.server, {
     ...dependencies,
     settingsStore

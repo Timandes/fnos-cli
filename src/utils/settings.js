@@ -7,6 +7,8 @@ const { randomUUID, createHash } = require('node:crypto');
 const os = require('node:os');
 const path = require('node:path');
 const { acquireFileLock, acquireFileLockSync } = require('./file-lock');
+const { protectPath } = require('./private-path');
+const { PasswordStore, isEncryptedPassword } = require('./password-store');
 const { isLanguage, interpolate } = require('../i18n/languages');
 
 const AUTH_FIELDS = [
@@ -64,14 +66,16 @@ function sortServerNames(names) {
   });
 }
 
-function sameKnownCredentials(left, right) {
+function sameKnownCredentials(left, right, decode) {
   return (left.authType || 'password') === (right.authType || 'password') &&
-    AUTH_FIELDS.every((field) => field === 'verifySsl'
+    AUTH_FIELDS.every((field) => field === 'password'
+      ? decode(left) === decode(right)
+      : field === 'verifySsl'
       ? (left[field] === true) === (right[field] === true)
       : left[field] === right[field]);
 }
 
-function validateCredentialRecord(record, label) {
+function validateCredentialRecord(record, label, metadataOnly = false) {
   if (record?.verifySsl !== undefined && typeof record.verifySsl !== 'boolean') {
     throw new ConfigurationError('Invalid certificate verification policy for server "{label}".', { label });
   }
@@ -98,6 +102,7 @@ function validateCredentialRecord(record, label) {
   }
   if (!isPlainObject(record) ||
       REQUIRED_CREDENTIAL_FIELDS.some((field) =>
+    field === 'password' && (isEncryptedPassword(record[field]) || (metadataOnly && isPlainObject(record[field]))) ? false :
     typeof record[field] !== 'string' || record[field].length === 0)) {
     throw new ConfigurationError('Invalid credentials for server "{label}".', { label });
   }
@@ -107,11 +112,12 @@ class Settings {
   constructor(homeDir = os.homedir()) {
     this.settingsDir = path.join(homeDir, '.fnos');
     this.settingsPath = path.join(this.settingsDir, 'settings.json');
+    this.passwordStore = new PasswordStore(this.settingsDir);
   }
 
   _ensureDir() {
     fs.mkdirSync(this.settingsDir, { recursive: true, mode: 0o700 });
-    fs.chmodSync(this.settingsDir, 0o700);
+    protectPath(this.settingsDir, true);
   }
 
   load() {
@@ -125,13 +131,41 @@ class Settings {
     }
   }
 
-  save(data) {
+  _passwordContext(record, name) {
+    return [name, record.endpoint, record.username];
+  }
+
+  _decodePassword(record, name, secure = true) {
+    return typeof record.password === 'string' ? record.password
+      : this.passwordStore.decrypt(record.password, this._passwordContext(record, name), secure);
+  }
+
+  _encryptRecord(record, name) {
+    if (!isPlainObject(record) || record.authType === 'oauth' || typeof record.password !== 'string' || !record.password) return record;
+    return { ...record, password: this.passwordStore.encrypt(record.password, this._passwordContext(record, name)) };
+  }
+
+  save(data, { encryptPasswords = true } = {}) {
     this._ensureDir();
     const temporaryPath = `${this.settingsPath}.${process.pid}.${randomUUID()}.tmp`;
     try {
-      fs.writeFileSync(temporaryPath, JSON.stringify(data, null, 2), { mode: 0o600 });
-      fs.chmodSync(temporaryPath, 0o600);
+      const records = [data, ...Object.values(isPlainObject(data.servers) ? data.servers : {})];
+      if (encryptPasswords && records.some(record => isEncryptedPassword(record?.password)) &&
+          records.some(record => record?.authType !== 'oauth' && typeof record?.password === 'string')) {
+        // Reads/migrations must never silently rotate a missing key.
+        this.passwordStore.key(false);
+      }
+      const encoded = encryptPasswords ? this._encryptRecord({ ...data }, 'default') : { ...data };
+      if (encryptPasswords && isPlainObject(data.servers)) {
+        encoded.servers = Object.fromEntries(Object.entries(data.servers).map(([name, record]) => [name, this._encryptRecord(record, name)]));
+      }
+      const fd = fs.openSync(temporaryPath, 'wx', 0o600);
+      try {
+        protectPath(temporaryPath);
+        fs.writeFileSync(fd, JSON.stringify(encoded, null, 2));
+      } finally { fs.closeSync(fd); }
       fs.renameSync(temporaryPath, this.settingsPath);
+      return encoded;
     } catch (error) {
       fs.rmSync(temporaryPath, { force: true });
       console.error(require('../i18n').t('Failed to save settings.'));
@@ -183,13 +217,14 @@ class Settings {
   }
 
   _clearCredentials(serverName) {
-    const data = this._loadCredentialSettings(true);
+    const data = this._loadCredentialSettings(true, { migrate: false, skipServer: serverName, metadataOnly: true });
     if (!Object.prototype.hasOwnProperty.call(data.servers, serverName)) {
       return false;
     }
     const servers = { ...data.servers };
     delete servers[serverName];
-    this.save({ ...data, servers });
+    // Logout must remain possible without the key; preserve other records byte-for-byte in value.
+    this.save({ ...data, servers }, { encryptPasswords: false });
     return true;
   }
 
@@ -197,94 +232,71 @@ class Settings {
     return fs.existsSync(this.settingsPath);
   }
 
-  _loadCredentialSettings(locked = false) {
+  _loadCredentialSettings(locked = false, { migrate = true, skipServer, metadataOnly = false } = {}) {
     const data = this.load() || {};
-    if (!isPlainObject(data)) {
-      throw new ConfigurationError('Invalid settings structure.');
-    }
+    if (!isPlainObject(data)) throw new ConfigurationError('Invalid settings structure.');
     const servers = data.servers === undefined ? {} : data.servers;
-    if (!isPlainObject(servers)) {
-      throw new ConfigurationError('Invalid servers configuration.');
-    }
+    if (!isPlainObject(servers)) throw new ConfigurationError('Invalid servers configuration.');
     for (const [name, credentials] of Object.entries(servers)) {
       if (!isValidServerName(name)) {
         throw new ConfigurationError('Invalid server name in settings: "{name}".', { name });
       }
-      validateCredentialRecord(credentials, name);
+      if (name !== skipServer) validateCredentialRecord(credentials, name, metadataOnly);
     }
-    const hasLegacy = AUTH_FIELDS.some((field) =>
-      Object.prototype.hasOwnProperty.call(data, field));
-    if (!hasLegacy) return { ...data, servers };
-    if (!locked) return this._withSettingsLock(() => this._loadCredentialSettings(true));
-    const legacy = pickCredentials(data);
-    validateCredentialRecord(legacy, 'default');
-    if (data.servers?.default &&
-        !sameKnownCredentials(legacy, data.servers.default)) {
-      throw new ConfigurationError(
-        'Conflicting legacy credentials and servers.default were found.'
-      );
-    }
-
-    const migrated = {
-      ...data,
-      servers: {
-        ...servers,
-        default: data.servers?.default || legacy
+    const hasLegacy = AUTH_FIELDS.some(field => Object.hasOwn(data, field));
+    let normalized = { ...data, servers };
+    if (hasLegacy) {
+      const legacy = pickCredentials(data);
+      if (skipServer !== 'default') {
+        validateCredentialRecord(legacy, 'default', metadataOnly);
+        // Metadata queries compare identities/policies without accessing the key.
+        const encryptedDuplicate = isPlainObject(legacy.password) || isPlainObject(servers.default?.password);
+        const decode = metadataOnly && encryptedDuplicate ? () => '' : record => this._decodePassword(record, 'default', false);
+        if (servers.default && !sameKnownCredentials(legacy, servers.default, decode)) {
+          throw new ConfigurationError('Conflicting legacy credentials and servers.default were found.');
+        }
       }
-    };
-    AUTH_FIELDS.forEach((field) => delete migrated[field]);
-    this.save(migrated);
-    return migrated;
+      normalized = { ...data, servers: { ...servers, default: servers.default || legacy } };
+      AUTH_FIELDS.forEach(field => delete normalized[field]);
+    }
+    const hasPlaintext = Object.values(servers).some(record => record.authType !== 'oauth' && typeof record.password === 'string');
+    if (!migrate || (!hasLegacy && !hasPlaintext)) return normalized;
+    if (!locked) return this._withSettingsLock(() => this._loadCredentialSettings(true));
+    return this.save(normalized);
   }
 
   listServers() {
-    const data = this._loadCredentialSettings();
+    const data = this._loadCredentialSettings(false, { migrate: false, metadataOnly: true });
     return Object.entries(data.servers).map(([name, credentials]) => ({
-      name,
-      endpoint: credentials.endpoint,
-      username: credentials.username
+      name, endpoint: credentials.endpoint, username: credentials.username
     }));
   }
 
   listServerNamesReadOnly() {
-    const data = this.load();
-    if (data === null) return [];
-    if (!isPlainObject(data)) {
-      throw new ConfigurationError('Invalid settings structure.');
-    }
-    const servers = data.servers === undefined ? {} : data.servers;
-    if (!isPlainObject(servers)) {
-      throw new ConfigurationError('Invalid servers configuration.');
-    }
-    for (const [name, credentials] of Object.entries(servers)) {
-      if (!isValidServerName(name)) {
-        throw new ConfigurationError('Invalid server name in settings: "{name}".', { name });
-      }
-      validateCredentialRecord(credentials, name);
-    }
-    const names = Object.keys(servers);
-    const hasLegacy = AUTH_FIELDS.some((field) =>
-      Object.prototype.hasOwnProperty.call(data, field));
-    if (hasLegacy) {
-      const legacy = pickCredentials(data);
-      validateCredentialRecord(legacy, 'default');
-      if (servers.default && !sameKnownCredentials(legacy, servers.default)) {
-        throw new ConfigurationError(
-          'Conflicting legacy credentials and servers.default were found.'
-        );
-      }
-      names.push('default');
-    }
-    return sortServerNames([...new Set(names)]);
+    const data = this._loadCredentialSettings(false, { migrate: false, metadataOnly: true });
+    return sortServerNames(Object.keys(data.servers));
+  }
+
+  /** Return status fields without decrypting, migrating or exposing secrets. */
+  getCredentialMetadata(serverName = 'default') {
+    const record = this._loadCredentialSettings(false, { migrate: false, metadataOnly: true }).servers[serverName];
+    if (!record) return null;
+    return { authType: record.authType || 'password', endpoint: record.endpoint, username: record.username,
+      verifySsl: record.verifySsl === true,
+      ...(record.authType === 'oauth' ? { oauth: { verifySsl: record.oauth.verifySsl === true,
+        session: { expiresAt: record.oauth.session.expiresAt } } } : {}) };
   }
 
   getCredentials(serverName = 'default') {
     const data = this._loadCredentialSettings();
     const credentials = data.servers[serverName];
-    return credentials ? pickCredentials(credentials) : null;
+    if (!credentials) return null;
+    const record = pickCredentials(credentials);
+    if (record.authType !== 'oauth') record.password = this._decodePassword(record, serverName);
+    return record;
   }
 
-  saveCredentials(serverName, credentials) {
+  saveCredentials(serverName, credentials, { allowKeyCreation = false } = {}) {
     if (!isValidServerName(serverName)) {
       throw new ConfigurationError('Invalid server name: "{name}".', { name: serverName });
     }
@@ -293,7 +305,13 @@ class Settings {
       credentialVersion: 2, secretFormat: 'decrypted-v1', ...credentials, authType: 'password'
     });
     return this._withSettingsLock(() => {
-      const data = this._loadCredentialSettings(true);
+      // Replacing a server must work even if that server's envelope is damaged.
+      const data = this._loadCredentialSettings(true, { migrate: false, skipServer: serverName, metadataOnly: true });
+      if (credentials.authType !== 'oauth') {
+        const hasEncrypted = Object.values(data.servers).some(value => isPlainObject(value?.password));
+        if (allowKeyCreation) this.passwordStore.key(true);
+        else if (hasEncrypted) this.passwordStore.key(false);
+      }
       this.save({ ...data, servers: { ...data.servers, [serverName]: record } });
     });
   }

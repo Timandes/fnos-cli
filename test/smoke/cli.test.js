@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const net = require('node:net');
 const os = require('node:os');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 const { after, before, describe, it } = require('mocha');
 const { COMMAND_CATALOG, COMMAND_COUNT } = require('../../src/commands/catalog');
 const { runCli } = require('../helpers/run-cli');
@@ -64,6 +65,20 @@ describe('fnos CLI smoke tests', function () {
       JSON.parse(fs.readFileSync(settingsPath, 'utf8')),
       { servers: {}, theme: 'dark' }
     );
+  });
+
+  it('logs in from stdin, stores ciphertext and reuses it for later commands', () => {
+    const testHome = home();
+    const result = spawnSync(process.execPath, [path.resolve(__dirname, '../../bin/fnos'), '--raw', 'login', '--server', 'stdin', '-e', '127.0.0.1:5666', '-u', 'admin', '--password-stdin'], {
+      input: 'admin\r\n', encoding: 'utf8', timeout: 30000, env: { ...process.env, HOME: testHome }
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(JSON.parse(result.stdout).authType, 'password');
+    const data = JSON.parse(fs.readFileSync(path.join(testHome, '.fnos/settings.json'), 'utf8'));
+    assert.equal(typeof data.servers.stdin.password, 'object');
+    const query = runCli(['--raw', 'sysinfo', 'getHostName', '--server', 'stdin'], testHome);
+    assert.equal(query.status, 0, query.stderr);
+    assert.equal(JSON.parse(query.stdout).result, 'succ');
   });
 
   it('keeps named server credentials independent', () => {

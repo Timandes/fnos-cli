@@ -15,18 +15,21 @@ function store() {
 afterEach(() => homes.splice(0).forEach(home => fs.rmSync(home, { recursive: true, force: true })));
 
 describe('language preferences', () => {
-  it('persists only language without migrating legacy credentials', () => {
+  it('persists language while encrypting passwords and retaining the legacy layout', () => {
     const settings = store();
     assert.equal(typeof settings.setLanguage, 'function');
     const original = { endpoint: 'nas', username: 'admin', password: 'pw', servers: { oauth: oauthRecord() }, other: { value: 0 } };
-    settings.save(original);
+    fs.mkdirSync(settings.settingsDir);
+    fs.writeFileSync(settings.settingsPath, JSON.stringify(original));
     settings.setLanguage('en');
+    const stored = { ...original, password: settings.load().password };
+    assert.equal(typeof stored.password, 'object');
     assert.equal(settings.getLanguage(), 'en');
-    assert.deepEqual(settings.load(), { ...original, language: 'en' });
+    assert.deepEqual(settings.load(), { ...stored, language: 'en' });
     assert.equal(fs.statSync(settings.settingsPath).mode & 0o777, 0o600);
     assert.equal(fs.statSync(settings.settingsDir).mode & 0o777, 0o700);
     settings.clearLanguage();
-    assert.deepEqual(settings.load(), original);
+    assert.deepEqual(settings.load(), stored);
     assert.equal(settings.getLanguage(), null);
   });
   it('rejects invalid values without creating a settings file', () => {
