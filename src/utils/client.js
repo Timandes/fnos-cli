@@ -132,7 +132,7 @@ async function createClientWithCredentials(credentials, options = {}, dependenci
           longToken: result.longToken || null,
           secret: decryptedSecret,
           secretFormat: 'decrypted-v1'
-        });
+        }, { allowKeyCreation: options.saveCredentials === true });
       }
     }
 

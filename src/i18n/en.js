@@ -359,5 +359,21 @@ module.exports = Object.freeze({
   "command": "command",
   "Unsupported zsh completion format: {format}": "Unsupported zsh completion format: {format}",
   "fnos completion: initialize compinit before evaluating this script.": "fnos completion: initialize compinit before evaluating this script.",
-  "(Did you mean one of {suggestions}?)": "(Did you mean one of {suggestions}?)"
+  "(Did you mean one of {suggestions}?)": "(Did you mean one of {suggestions}?)",
+  "Read password from standard input": "Read password from standard input",
+  "Password login requires -e/--endpoint and -u/--username.": "Password login requires -e/--endpoint and -u/--username.",
+  "--server cannot be combined with -e/--endpoint, -u/--username, or password input options.": "--server cannot be combined with -e/--endpoint, -u/--username, or password input options.",
+  "--password and --password-stdin cannot be used together.": "--password and --password-stdin cannot be used together.",
+  "Password must be non-empty and contain only one line.": "Password must be non-empty and contain only one line.",
+  "--password-stdin requires piped or redirected input.": "--password-stdin requires piped or redirected input.",
+  "Failed to read password from stdin.": "Failed to read password from stdin.",
+  "Password input requires an interactive terminal. Use --password-stdin or --password.": "Password input requires an interactive terminal. Use --password-stdin or --password.",
+  "Password entry cancelled.": "Password entry cancelled.",
+  "Password input ended before confirmation.": "Password input ended before confirmation.",
+  "Failed to read password from terminal.": "Failed to read password from terminal.",
+  "Failed to restore terminal after password entry.": "Failed to restore terminal after password entry.",
+  "Password: ": "Password: ",
+  "Failed to restrict private settings permissions.": "Failed to restrict private settings permissions.",
+  "Password key is missing, damaged or inaccessible. If damaged, remove ~/.fnos/password.key, then run \"fnos login\" again.": "Password key is missing, damaged or inaccessible. If damaged, remove ~/.fnos/password.key, then run \"fnos login\" again.",
+  "Failed to decrypt saved password. Run \"fnos login\" again for this server.": "Failed to decrypt saved password. Run \"fnos login\" again for this server."
 });

@@ -61,3 +61,15 @@ jobs:
       - name: Show mock-server log
         if: failure()
         run: cat /tmp/fnos-mock-server.log
+
+  windows-passwords:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - name: Verify password input, encryption and effective Windows ACLs
+        run: npx mocha --timeout 60000 test/unit/password-input.test.js test/unit/password-storage.test.js

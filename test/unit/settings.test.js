@@ -18,6 +18,12 @@ function settingsStore() {
   return new settingsModule.Settings(home);
 }
 
+// Legacy fixtures must bypass the new encrypted writer.
+function writeLegacy(store, data) {
+  fs.mkdirSync(store.settingsDir, { recursive: true });
+  fs.writeFileSync(store.settingsPath, JSON.stringify(data));
+}
+
 describe('credential settings', () => {
   it('exports the known authentication fields', () => {
     assert.deepEqual(settingsModule.AUTH_FIELDS, [
@@ -35,7 +41,7 @@ describe('credential settings', () => {
 
   it('migrates legacy credentials to default and preserves unrelated settings', () => {
     const store = settingsStore();
-    store.save({
+    writeLegacy(store, {
       endpoint: 'legacy:5666',
       username: 'admin',
       password: 'pw',
@@ -50,12 +56,13 @@ describe('credential settings', () => {
     assert.deepEqual(store.listServers(), [
       { name: 'default', endpoint: 'legacy:5666', username: 'admin' }
     ]);
+    assert.equal(store.getCredentials().password, 'pw');
     assert.deepEqual(store.load(), {
       servers: {
         default: {
           endpoint: 'legacy:5666',
           username: 'admin',
-          password: 'pw',
+          password: store.load().servers.default.password,
           credentialVersion: 2,
           token: 'token',
           longToken: 'long',
@@ -69,7 +76,7 @@ describe('credential settings', () => {
 
   it('keeps named servers while migrating legacy credentials to default', () => {
     const store = settingsStore();
-    store.save({
+    writeLegacy(store, {
       endpoint: 'legacy:5666',
       username: 'legacy-user',
       password: 'legacy-pw',
@@ -82,7 +89,7 @@ describe('credential settings', () => {
       }
     });
 
-    store.listServers();
+    store.getCredentials();
 
     const data = store.load();
     assert.equal(data.servers.default.endpoint, 'legacy:5666');
@@ -103,7 +110,7 @@ describe('credential settings', () => {
         }
       }
     };
-    store.save(original);
+    writeLegacy(store, original);
 
     assert.throws(
       () => store.listServers(),
@@ -119,14 +126,14 @@ describe('credential settings', () => {
       username: 'admin',
       password: 'pw'
     };
-    store.save({
+    writeLegacy(store, {
       ...credentials,
       servers: { default: { ...credentials } }
     });
 
     assert.equal(store.getCredentials().endpoint, 'home:5666');
     assert.deepEqual(store.load(), {
-      servers: { default: credentials }
+      servers: { default: { ...credentials, password: store.load().servers.default.password } }
     });
   });
 
@@ -138,11 +145,12 @@ describe('credential settings', () => {
     ]) {
       const store = settingsStore();
       const original = { ...legacy, servers: { default: server } };
-      store.save(original);
+      writeLegacy(store, original);
       assert.deepEqual(store.listServerNamesReadOnly(), ['default']);
       assert.deepEqual(store.load(), original);
       assert.equal(store.getCredentials().endpoint, 'home:5666');
-      assert.deepEqual(store.load(), { servers: { default: server } });
+      assert.deepEqual(store.getCredentials(), server);
+      assert.equal(typeof store.load().servers.default.password, 'object');
     }
   });
 
@@ -152,7 +160,7 @@ describe('credential settings', () => {
       const store = settingsStore();
       const original = { ...credentials, ...legacyPolicy,
         servers: { default: { ...credentials, verifySsl: true } } };
-      store.save(original);
+      writeLegacy(store, original);
       assert.throws(() => store.listServerNamesReadOnly(), /Conflicting legacy credentials/);
       assert.throws(() => store.getCredentials(), /Conflicting legacy credentials/);
       assert.deepEqual(store.load(), original);
@@ -161,7 +169,7 @@ describe('credential settings', () => {
 
   it('lists server names without migrating or modifying settings', () => {
     const store = settingsStore();
-    store.save({
+    writeLegacy(store, {
       endpoint: 'legacy:5666',
       username: 'legacy-user',
       password: 'legacy-pw',
@@ -189,7 +197,7 @@ describe('credential settings', () => {
 
   it('rejects malformed records in the read-only server view', () => {
     const store = settingsStore();
-    store.save({ servers: { office: { endpoint: 'office:5666' } } });
+    writeLegacy(store, { servers: { office: { endpoint: 'office:5666' } } });
 
     assert.throws(
       () => store.listServerNamesReadOnly(),

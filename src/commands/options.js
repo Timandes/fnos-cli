@@ -148,6 +148,7 @@ function registerAuthenticationOptions(command, requiredCredentials = false) {
   command[add]('-e, --endpoint <endpoint>', 'Server endpoint, including optional ws:// or wss:// prefix');
   command[add]('-u, --username <username>', 'Username');
   command[add]('-p, --password <password>', 'Password');
+  command.option('--password-stdin', 'Read password from standard input');
   command.option('--twofa-code <code>', 'Six-digit two-factor code');
   command.option('--trust-device', 'Trust this device after two-factor login');
   command.option('--verify-ssl', 'Verify HTTPS/WSS certificates (saved with login; default: disabled)');

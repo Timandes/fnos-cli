@@ -1,6 +1,7 @@
 const { t } = require('../i18n');
 const settings = require('../utils/settings');
 const { createClient } = require('../utils/client');
+const { resolvePassword } = require('../utils/password-input');
 const { resolveServerName } = require('../utils/auth-helper');
 const { formatError } = require('../utils/errors');
 const { selectServer } = require('../utils/server-selector');
@@ -31,7 +32,7 @@ function registerLoginCommand(program, dependencies = {}) {
       if (!['password', 'oauth'].includes(options.auth)) throw new CommandParameterError('--auth must be password or oauth.');
       if (!options.endpoint) throw new CommandParameterError('--endpoint is required.');
       if (options.auth === 'oauth') {
-        if ([options.username, options.password, options.twofaCode, options.trustDevice].some(value => value !== undefined)) {
+        if ([options.username, options.password, options.passwordStdin, options.twofaCode, options.trustDevice].some(value => value !== undefined)) {
           throw new CommandParameterError('OAuth login cannot use username, password, two-factor or trust-device options.');
         }
         validateOAuthEndpoint(options.endpoint, options.verifySsl === true);
@@ -40,13 +41,14 @@ function registerLoginCommand(program, dependencies = {}) {
         process.exitCode = 0;
         return;
       }
-      if (!options.username || !options.password) throw new CommandParameterError('Password login requires -e/--endpoint, -u/--username and -p/--password.');
+      if (!options.username) throw new CommandParameterError('Password login requires -e/--endpoint and -u/--username.');
+      const password = await resolvePassword(options, dependencies);
       const store = dependencies.settings || settings;
       release = await store.acquireServerLock(options.server || 'default');
       client = await create({
         endpoint: options.endpoint,
         username: options.username,
-        password: options.password,
+        password,
         timeout: 60,
         saveCredentials: true,
         serverName: options.server || 'default',
@@ -118,7 +120,9 @@ function registerAuthStatusCommand(program, dependencies = {}) {
         settingsStore: store, select: dependencies.selectServer || selectServer,
         selectorDependencies: dependencies.selectorDependencies
       });
-      const credentials = store.getCredentials(serverName);
+      const credentials = store.getCredentialMetadata
+        ? store.getCredentialMetadata(serverName)
+        : store.getCredentials(serverName);
       const authType = credentials.authType || 'password';
       const status = { server: serverName, authType, endpoint: credentials.endpoint,
         verifySsl: authType === 'oauth' ? credentials.oauth.verifySsl === true : credentials.verifySsl === true,

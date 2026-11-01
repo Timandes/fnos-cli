@@ -359,5 +359,21 @@ module.exports = Object.freeze({
   "command": "命令",
   "Unsupported zsh completion format: {format}": "不支持的 zsh 补全格式：{format}",
   "fnos completion: initialize compinit before evaluating this script.": "fnos 补全：请先初始化 compinit，再执行此脚本。",
-  "(Did you mean one of {suggestions}?)": "（你是否想输入以下项之一：{suggestions}？）"
+  "(Did you mean one of {suggestions}?)": "（你是否想输入以下项之一：{suggestions}？）",
+  "Read password from standard input": "从标准输入读取密码",
+  "Password login requires -e/--endpoint and -u/--username.": "密码登录需要同时提供 -e/--endpoint 和 -u/--username。",
+  "--server cannot be combined with -e/--endpoint, -u/--username, or password input options.": "--server 不能与 -e/--endpoint、-u/--username 或密码输入选项同时使用。",
+  "--password and --password-stdin cannot be used together.": "--password 和 --password-stdin 不能同时使用。",
+  "Password must be non-empty and contain only one line.": "密码不能为空，且只能包含一行。",
+  "--password-stdin requires piped or redirected input.": "--password-stdin 需要通过管道或重定向提供输入。",
+  "Failed to read password from stdin.": "无法从标准输入读取密码。",
+  "Password input requires an interactive terminal. Use --password-stdin or --password.": "输入密码需要交互终端。请使用 --password-stdin 或 --password。",
+  "Password entry cancelled.": "已取消密码输入。",
+  "Password input ended before confirmation.": "密码输入在确认之前已结束。",
+  "Failed to read password from terminal.": "无法从终端读取密码。",
+  "Failed to restore terminal after password entry.": "密码输入后无法恢复终端状态。",
+  "Password: ": "密码：",
+  "Failed to restrict private settings permissions.": "无法限制私有配置的访问权限。",
+  "Password key is missing, damaged or inaccessible. If damaged, remove ~/.fnos/password.key, then run \"fnos login\" again.": "密码密钥缺失、损坏或无法访问。如果密钥损坏，请删除 ~/.fnos/password.key 后重新运行 \"fnos login\"。",
+  "Failed to decrypt saved password. Run \"fnos login\" again for this server.": "无法解密已保存的密码。请为此 server 重新运行 \"fnos login\"。"
 });
