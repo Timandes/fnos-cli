@@ -53,9 +53,9 @@ describe('hierarchical help', () => {
     assert.match(output, /--verify-ssl/);
     assert.match(output, /--raw/);
     assert.match(output, /--silly/);
-    assert.doesNotMatch(output, /Commands:|listContainers/);
-    assert.equal((output.match(/--server/g) || []).length, 1);
-    assert.equal((output.match(/--raw/g) || []).length, 1);
+    assert.doesNotMatch(output, /^Commands:|listContainers/m);
+    assert.equal((output.match(/^  -s, --server /gm) || []).length, 1);
+    assert.equal((output.match(/^  --raw {2,}/gm) || []).length, 1);
   });
 
   it('keeps dotted help available and hides legacy option spellings', () => {

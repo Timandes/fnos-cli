@@ -2,10 +2,23 @@ const { withLanguage, t } = require('../src/i18n');
 const fs = require('node:fs');
 const path = require('node:path');
 const { COMMAND_CATALOG, COMMAND_COUNT, DOMAIN_COUNT } = require('../src/commands/catalog');
+const { getHelpSections, formatExample } = require('../src/help/sections');
+const { utilities } = require('../src/help/content');
 
-function displayDefault(value) {
-  if (value === undefined) return '';
-  return ` Default: \`${JSON.stringify(value)}\`.`;
+function markdownLine(line) {
+  const escape = value => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const option = line.match(/^(--[\w-]+(?: <[^>]+>)?)(.*)$/);
+  if (option) return `- \`${option[1]}\`${escape(option[2])}`;
+  if (line.startsWith('fnos ')) return `- \`${line}\``;
+  return `- ${escape(line)}`;
+}
+
+function appendDetails(lines, path) {
+  for (const section of getHelpSections(path)) {
+    lines.push(`#### ${section.title.replace(/[:：]$/, '')}`, '');
+    lines.push(...section.lines.map(markdownLine), '');
+    if (section.examples?.length) lines.push('```sh', ...section.examples.map(formatExample), '```', '');
+  }
 }
 
 function renderEnglishReference() {
@@ -77,16 +90,13 @@ function renderEnglishReference() {
     lines.push(`## ${domainName}`, '', t(domain.description), '');
     for (const [commandName, definition] of Object.entries(domain.commands)) {
       lines.push(`### \`${domainName} ${commandName}\``, '', t(definition.description), '');
-      if (definition.options.length === 0) {
-        lines.push('No business options.', '');
-      } else {
-        lines.push('| Option | Required | Type | Description |', '|---|---:|---|---|');
-        for (const option of definition.options) {
-          lines.push(`| \`${option.flag}\` | ${option.required ? 'yes' : 'no'} | ${option.type} | ${t(option.description)}.${displayDefault(option.defaultValue)} |`);
-        }
-        lines.push('');
-      }
+      appendDetails(lines, [domainName, commandName]);
     }
+  }
+  lines.push('## Utility Operation Details', '');
+  for (const name of Object.keys(utilities)) {
+    lines.push(`### \`fnos ${name}\``, '');
+    appendDetails(lines, name.split(' '));
   }
   return lines.join('\n');
 }
