@@ -1,4 +1,5 @@
 const { Help } = require('commander');
+const { renderHelpDetails } = require('../help/sections');
 const settings = require('../utils/settings');
 const { isLanguage } = require('./languages');
 const { t, getLanguage, withLanguage } = require('./index');
@@ -113,8 +114,12 @@ function configureLocalization(program, dependencies = {}) {
     command.configureHelp({
       ...command.configureHelp(),
       formatHelp(current, helper) {
-        return Help.prototype.formatHelp.call(this, current, helper)
+        const base = Help.prototype.formatHelp.call(this, current, helper)
           .replace(/^(Usage:|Arguments:|Options:|Global Options:|Commands:)/gm, heading => t(heading));
+        const path = [];
+        for (let node = current; node.parent; node = node.parent) path.unshift(node.name());
+        const details = renderHelpDetails(path, helper.helpWidth || 80);
+        return details ? `${base}\n${details}\n` : base;
       },
       optionDescription(option) { return translateExtraInfo(Help.prototype.optionDescription.call(this, option)); },
       argumentDescription(argument) { return translateExtraInfo(Help.prototype.argumentDescription.call(this, argument)); }
