@@ -40,8 +40,9 @@ class PasswordStore {
       const key = fs.readFileSync(this.keyPath);
       if (key.length !== 32) throw new Error('Invalid key length');
       return key;
-    } catch {
-      throw new Error(require('../i18n').t('Password key is missing, damaged or inaccessible. If damaged, remove ~/.fnos/password.key, then run "fnos login" again.'));
+    } catch (error) {
+      throw new Error(require('../i18n').t('Password key is missing, damaged or inaccessible. If damaged, remove ~/.fnos/password.key, then run "fnos login" again.'),
+        error.code === 'ERR_FNOS_PRIVATE_PATH' ? { cause: error.cause } : undefined);
     }
   }
 

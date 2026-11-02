@@ -6,6 +6,7 @@ const { spawn, execFileSync } = require('node:child_process');
 const { describe, afterEach } = require('mocha');
 const { it } = require('../helpers/english');
 const { Settings } = require('../../src/utils/settings');
+const { readWindowsAcl, runWindowsPowerShell, nativeModuleEnvironment } = require('../helpers/windows-acl');
 const homes = [];
 afterEach(() => { for (const home of homes.splice(0)) fs.rmSync(home, { recursive: true, force: true }); });
 function setup() {
@@ -250,6 +251,40 @@ describe('encrypted password settings', function () {
 });
 
 describe('private path protection', () => {
+  it('retains safe subprocess diagnostics without exposing raw errors or output', () => {
+    const { protectPath } = require('../../src/utils/private-path');
+    const store = setup();
+    const file = path.join(path.dirname(store.settingsDir), 'empty');
+    fs.writeFileSync(file, '');
+    const failure = Object.assign(new Error('PASSWORD_SENTINEL TOKEN_SENTINEL KEY_SENTINEL'), {
+      status: 23, stdout: Buffer.from('KEY_SENTINEL'),
+      stderr: Buffer.from('PASSWORD_SENTINEL\nFNOS_ACL_EXCEPTION:System.Management.Automation.MethodInvocationException\nFNOS_ACL_EXCEPTION:System.UnauthorizedAccessException\nFNOS_ACL_EXCEPTION:KEY_SENTINEL\nFNOS_ACL_HRESULT:-2147024891\nTOKEN_SENTINEL')
+    });
+    assert.throws(() => protectPath(file, false, { platform: 'win32', execFileSync: () => { throw failure; } }), error => {
+      assert.match(error.message, /permissions|private/i);
+      assert.equal(error.cause?.status, 23);
+      assert.deepEqual(error.cause?.exceptionTypes, ['System.Management.Automation.MethodInvocationException', 'System.UnauthorizedAccessException']);
+      assert.equal(error.cause?.hresult, -2147024891);
+      assert.doesNotMatch(require('node:util').inspect(error, { depth: null }), /PASSWORD_SENTINEL|TOKEN_SENTINEL|KEY_SENTINEL/);
+      return true;
+    });
+  });
+
+  it('retains safe timeout diagnostics without copying arbitrary process fields', () => {
+    const { protectPath } = require('../../src/utils/private-path');
+    const store = setup();
+    const file = path.join(path.dirname(store.settingsDir), 'empty');
+    fs.writeFileSync(file, '');
+    const failure = Object.assign(new Error('KEY_SENTINEL'), { code: 'ETIMEDOUT', status: null, signal: 'SIGTERM', stderr: Buffer.from('KEY_SENTINEL') });
+    assert.throws(() => protectPath(file, false, { platform: 'win32', execFileSync: () => { throw failure; } }), error => {
+      assert.equal(error.cause?.code, 'ETIMEDOUT');
+      assert.equal(error.cause?.status, null);
+      assert.equal(error.cause?.signal, 'SIGTERM');
+      assert.doesNotMatch(require('node:util').inspect(error, { depth: null }), /KEY_SENTINEL/);
+      return true;
+    });
+  });
+
   it('tightens Unix permissions and rejects symlinks instead of changing their targets', function () {
     if (process.platform === 'win32') this.skip();
     const { protectPath } = require('../../src/utils/private-path');
@@ -259,6 +294,14 @@ describe('private path protection', () => {
     fs.writeFileSync(file, 'data', { mode: 0o644 });
     protectPath(file, false, { platform: 'linux' });
     assert.equal(fs.statSync(file).mode & 0o777, 0o600);
+    const directory = path.join(path.dirname(store.settingsDir), 'directory');
+    fs.mkdirSync(directory, { mode: 0o755 });
+    for (let attempt = 0; attempt < 2; attempt++) {
+      protectPath(directory, true);
+      protectPath(file);
+      assert.equal(fs.statSync(directory).mode & 0o777, 0o700);
+      assert.equal(fs.statSync(file).mode & 0o777, 0o600);
+    }
     if (process.platform !== 'win32') {
       fs.symlinkSync(file, link);
       assert.throws(() => protectPath(link, false), /private|permissions/i);
@@ -289,17 +332,91 @@ describe('Windows password file ACLs', function () {
     const store = setup();
     store.saveCredentials('home', creds);
     for (const target of [store.settingsDir, store.settingsPath, path.join(store.settingsDir, 'password.key')]) {
-      const script = `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $a = Get-Acl -LiteralPath $env:FNOS_ACL_TARGET; $sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value; [pscustomobject]@{ Protected = $a.AreAccessRulesProtected; Expected = $sid; Owner = $a.GetOwner([System.Security.Principal.SecurityIdentifier]).Value; Rules = @($a.GetAccessRules($true, $true, [System.Security.Principal.SecurityIdentifier]) | ForEach-Object { [pscustomobject]@{ SID = $_.IdentityReference.Value; Allow = $_.AccessControlType.ToString(); Inherited = $_.IsInherited } }) } | ConvertTo-Json -Depth 5 -Compress`;
-      const result = JSON.parse(execFileSync(path.win32.join(process.env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe'), ['-NoProfile', '-NonInteractive', '-Command', script], { env: { ...process.env, FNOS_ACL_TARGET: target }, encoding: 'utf8' }).trim().replace(/^\uFEFF/, ''));
+      const result = readWindowsAcl(target);
       assert.equal(result.Protected, true);
       assert.equal(result.Owner, result.Expected);
-      assert.ok(result.Rules.length > 0);
+      assert.equal(result.Rules.length, 1);
       for (const rule of result.Rules) {
         assert.equal(rule.SID, result.Expected);
         assert.equal(rule.Allow, 'Allow');
         assert.equal(rule.Inherited, false);
+        assert.equal(rule.Rights, 'FullControl');
+        assert.equal(rule.RightsBits, 0x1f01ff);
       }
     }
     assert.equal(store.getCredentials('home').password, creds.password);
+  });
+
+  for (const environment of ['inherited', 'native-modules']) {
+    for (const directory of [true, false]) {
+      it(`repeatedly protects ${directory ? 'directories' : 'files'} and special paths (${environment})`, function () {
+        if (process.platform !== 'win32') this.skip();
+        const { protectPath } = require('../../src/utils/private-path');
+        const store = setup();
+        for (const name of ['ordinary', "空 格'a[1]"]) {
+          const target = path.join(path.dirname(store.settingsDir), name);
+          if (directory) fs.mkdirSync(target); else fs.writeFileSync(target, '');
+          // Deliberately add an explicit grant in addition to inherited rules.
+          // The production code must remove both, not merely disable inheritance.
+          runWindowsPowerShell(`
+$ErrorActionPreference = 'Stop'
+$a = Get-Acl -LiteralPath $env:FNOS_ACL_TARGET
+$users = [System.Security.Principal.SecurityIdentifier]::new('S-1-5-32-545')
+$a.AddAccessRule([System.Security.AccessControl.FileSystemAccessRule]::new($users, 'Read', 'Allow'))
+if ([System.IO.Directory]::Exists($env:FNOS_ACL_TARGET)) { [System.IO.Directory]::SetAccessControl($env:FNOS_ACL_TARGET, $a) }
+else { [System.IO.File]::SetAccessControl($env:FNOS_ACL_TARGET, $a) }
+`, { FNOS_ACL_TARGET: target });
+          const before = readWindowsAcl(target);
+          assert.ok(before.Rules.some(rule => rule.Inherited));
+          assert.ok(before.Rules.some(rule => rule.SID === 'S-1-5-32-545' && !rule.Inherited));
+          const dependencies = environment === 'inherited' ? {} : {
+            execFileSync: (exe, args, options) => execFileSync(exe, args, { ...options, env: nativeModuleEnvironment(options.env) })
+          };
+          for (let attempt = 0; attempt < 2; attempt++) {
+            protectPath(target, directory, dependencies);
+            const acl = readWindowsAcl(target);
+            assert.equal(acl.Protected, true);
+            assert.equal(acl.Owner, acl.Expected);
+            assert.deepEqual(acl.Rules, [{ SID: acl.Expected, Allow: 'Allow', Inherited: false, Rights: 'FullControl', RightsBits: 0x1f01ff,
+              Inheritance: directory ? 'ContainerInherit, ObjectInherit' : 'None', Propagation: 'None' }]);
+          }
+          const writable = directory ? path.join(target, 'synthetic') : target;
+          fs.writeFileSync(writable, 'test-only');
+          assert.equal(fs.readFileSync(writable, 'utf8'), 'test-only');
+          fs.renameSync(writable, writable + '-renamed');
+          fs.unlinkSync(writable + '-renamed');
+        }
+      });
+    }
+  }
+
+  for (const stage of ['directory', 'key', 'settings']) {
+    it(`refuses data writes after ${stage} ACL failure and retains safe diagnostics`, function () {
+      if (process.platform !== 'win32') this.skip();
+      const store = setup();
+      fs.mkdirSync(store.settingsDir);
+      const original = JSON.stringify({ servers: {}, theme: 'original' });
+      fs.writeFileSync(store.settingsPath, original);
+      const output = execFileSync(process.execPath, [path.resolve(__dirname, '../helpers/acl-write-failure.js'), path.dirname(store.settingsDir), stage], { encoding: 'utf8', timeout: 60000 });
+      assert.equal(JSON.parse(output).writesAfterFailure, 0);
+      assert.equal(fs.readFileSync(store.settingsPath, 'utf8'), original);
+      assert.deepEqual(fs.readdirSync(store.settingsDir), ['settings.json']);
+    });
+  }
+
+  it('preserves a real OS exception when a checked empty target disappears before ACL persistence', function () {
+    if (process.platform !== 'win32') this.skip();
+    const { protectPath } = require('../../src/utils/private-path');
+    const store = setup();
+    const file = path.join(path.dirname(store.settingsDir), 'empty');
+    fs.writeFileSync(file, '');
+    assert.throws(() => protectPath(file, false, { execFileSync: (exe, args, options) => {
+      fs.unlinkSync(file);
+      return execFileSync(exe, args, options);
+    } }), error => {
+      assert.equal(error.cause?.status, 1);
+      assert.ok(error.cause?.exceptionTypes.includes('System.IO.FileNotFoundException'));
+      return true;
+    });
   });
 });
